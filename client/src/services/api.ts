@@ -1,8 +1,17 @@
 import axios from 'axios';
 import { KioskMachine, UploadedPdfInfo, PrintOptions, PriceSummary, PrintJob } from '../types';
 
+const getBaseApiUrl = (): string => {
+  const rawUrl = ((import.meta as any).env?.VITE_API_URL as string) || '';
+  if (rawUrl) {
+    const trimmed = rawUrl.replace(/\/+$/, '');
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  }
+  return '/api';
+};
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getBaseApiUrl(),
   timeout: 30000,
 });
 

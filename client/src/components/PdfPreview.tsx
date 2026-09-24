@@ -21,9 +21,21 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ fileUrl, currentPage = 1
     setLoading(true);
     setError(null);
 
+    const getFullUrl = (url: string): string => {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://')) return url;
+      const rawUrl = ((import.meta as any).env?.VITE_API_URL as string) || '';
+      if (rawUrl) {
+        const trimmed = rawUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+        return `${trimmed}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+      return url;
+    };
+
     const loadPdf = async () => {
       try {
-        const loadingTask = pdfjsLib.getDocument(fileUrl);
+        const targetUrl = getFullUrl(fileUrl);
+        const loadingTask = pdfjsLib.getDocument(targetUrl);
         const doc = await loadingTask.promise;
         
         if (!isMounted) return;

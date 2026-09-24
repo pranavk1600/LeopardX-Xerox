@@ -2,9 +2,20 @@ import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
 
+const getSocketBackendUrl = (): string => {
+  const rawUrl =
+    ((import.meta as any).env?.VITE_API_URL as string) ||
+    ((import.meta as any).env?.VITE_BACKEND_URL as string) ||
+    '';
+  if (rawUrl) {
+    return rawUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+  }
+  return 'http://localhost:5000';
+};
+
 export const getSocket = (): Socket => {
   if (!socket) {
-    const backendUrl = ((import.meta as any).env?.VITE_BACKEND_URL as string) || 'http://localhost:5000';
+    const backendUrl = getSocketBackendUrl();
     console.log(`[Frontend Socket] Initializing Socket.IO connection to backend: ${backendUrl}`);
     socket = io(backendUrl, {
       autoConnect: true,
