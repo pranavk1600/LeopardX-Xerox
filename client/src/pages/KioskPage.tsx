@@ -16,6 +16,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { Header } from '../components/Header';
+import { Footer } from '../components/Footer';
 import { PdfPreview } from '../components/PdfPreview';
 import {
   getMachineByCode,
@@ -745,7 +746,7 @@ export const KioskPage: React.FC = () => {
 
                       <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
                         <Lock className="w-3 h-3 text-emerald-400" />
-                        <span>Secured by Cashfree Payments Sandbox</span>
+                        <span>Secured by Cashfree Payments</span>
                       </div>
                     </div>
                   </div>
@@ -755,6 +756,7 @@ export const KioskPage: React.FC = () => {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 };
