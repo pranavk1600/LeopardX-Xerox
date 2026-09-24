@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MachineStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum PrintJobStatus {
+  CREATED
+  PAYMENT_PENDING
+  PAID
+  QUEUED
+  PRINTING
+  COMPLETED
+  FAILED
+}
+
+enum ColorMode {
+  BW
+  COLOR
+}
+
+enum PaperSize {
+  A4
+  A3
+}
+
+enum PaymentGateway {
+  CASHFREE
+  RAZORPAY
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Machine {
+  id          String        @id @default(uuid())
+  machineCode String        @unique @map("machine_code")
+  name        String
+  location    String
+  status      MachineStatus @default(ONLINE)
+  token       String        @default(uuid())
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  printJobs   PrintJob[]
+
+  @@map("machines")
+}
+
+model PrintJob {
+  id            String         @id @default(uuid())
+  machineId     String         @map("machine_id")
+  fileName      String         @map("file_name")
+  fileUrl       String         @map("file_url")
+  totalPages    Int            @map("total_pages")
+  selectedPages String         @map("selected_pages") // e.g. "all" or "1-5, 8"
+  copies        Int            @default(1)
+  colorMode     ColorMode      @default(BW) @map("color_mode")
+  paperSize     PaperSize      @default(A4) @map("paper_size")
+  price         Float
+  status        PrintJobStatus @default(CREATED)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  machine       Machine        @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  payment       Payment?
+
+  @@map("print_jobs")
+}
+
+model Payment {
+  id         String         @id @default(uuid())
+  printJobId String         @unique @map("print_job_id")
+  gateway    PaymentGateway @default(CASHFREE)
+  orderId    String         @map("order_id")
+  paymentId  String?        @map("payment_id")
+  amount     Float
+  status     PaymentStatus  @default(CREATED)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  printJob   PrintJob       @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
