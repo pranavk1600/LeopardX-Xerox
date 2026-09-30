@@ -12,6 +12,7 @@ interface PdfPreviewProps {
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({ fileUrl, currentPage = 1, onTotalPagesLoaded }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -71,11 +72,12 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ fileUrl, currentPage = 1
         const page = await pdfDoc.getPage(targetPageNum);
         
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        const container = containerRef.current;
+        if (!canvas || !container) return;
 
         const viewport = page.getViewport({ scale: 1.0 });
-        const containerWidth = canvas.parentElement?.clientWidth || 320;
-        const scale = containerWidth / viewport.width;
+        const availableWidth = Math.max(200, container.clientWidth - 16);
+        const scale = availableWidth / viewport.width;
         const scaledViewport = page.getViewport({ scale });
 
         const context = canvas.getContext('2d');
@@ -108,23 +110,26 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ fileUrl, currentPage = 1
   }, [pdfDoc, currentPage]);
 
   return (
-    <div className="relative w-full overflow-hidden bg-slate-900/5 rounded-xl border border-slate-200 p-2 flex flex-col items-center justify-center min-h-[260px]">
+    <div
+      ref={containerRef}
+      className="relative w-full max-w-full overflow-hidden bg-slate-900/5 rounded-xl border border-slate-200 p-2 flex flex-col items-center justify-center min-h-[220px] sm:min-h-[260px] box-border"
+    >
       {loading && (
         <div className="flex flex-col items-center gap-2 py-10 text-slate-500">
-          <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium">Loading document preview...</span>
+          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs sm:text-sm font-medium">Loading document preview...</span>
         </div>
       )}
 
       {error && (
-        <div className="text-red-500 text-sm py-8 font-medium">
+        <div className="text-red-500 text-xs sm:text-sm py-8 font-medium">
           ⚠️ {error}
         </div>
       )}
 
       <canvas
         ref={canvasRef}
-        className={`max-w-full rounded shadow-md border border-slate-200 bg-white transition-opacity duration-200 ${
+        className={`max-w-full h-auto object-contain rounded shadow-md border border-slate-200 bg-white transition-opacity duration-200 ${
           loading || error ? 'hidden' : 'block'
         }`}
       />

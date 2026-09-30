@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../config/prisma';
 import { PrintJobStatus } from '@prisma/client';
+import { storageService } from '../services/storage.service';
 
 export class SocketManager {
   private io: Server;
@@ -73,6 +74,11 @@ export class SocketManager {
             where: { id: jobId },
             data: { status },
           });
+
+          // Trigger automatic temporary PDF cleanup when job reaches COMPLETED
+          if (status === 'COMPLETED' && updatedJob.fileName) {
+            storageService.deleteTemporaryPdf(updatedJob.fileName);
+          }
 
           // Notify subscribed clients
           console.log(`[Backend -> Frontend] Emitting job:updated for ${jobId} -> Status: ${status}`);

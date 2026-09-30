@@ -13,6 +13,11 @@ enum MachineStatus {
   MAINTENANCE
 }
 
+enum OperationalState {
+  ACTIVE
+  DISABLED
+}
+
 enum PrintJobStatus {
   CREATED
   PAYMENT_PENDING
@@ -46,16 +51,17 @@ enum PaymentStatus {
 }
 
 model Machine {
-  id          String        @id @default(uuid())
-  machineCode String        @unique @map("machine_code")
-  name        String
-  location    String
-  status      MachineStatus @default(ONLINE)
-  token       String        @default(uuid())
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id               String           @id @default(uuid())
+  machineCode      String           @unique @map("machine_code")
+  name             String
+  location         String
+  status           MachineStatus    @default(OFFLINE)
+  operationalState OperationalState @default(ACTIVE) @map("operational_state")
+  token            String           @default(uuid())
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  printJobs   PrintJob[]
+  printJobs        PrintJob[]
 
   @@map("machines")
 }

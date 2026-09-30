@@ -4,7 +4,15 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   console.error('[Unhandled Error]', err);
 
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  let message = err.message || 'Internal Server Error';
+
+  if (
+    message.includes('Prisma') ||
+    message.includes('database server') ||
+    message.includes("Can't reach database")
+  ) {
+    message = 'Database service temporarily unavailable. Please verify database connection.';
+  }
 
   res.status(statusCode).json({
     success: false,

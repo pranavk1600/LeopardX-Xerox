@@ -82,9 +82,17 @@ export const createPrintJob = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const machine = await prisma.machine.findUnique({ where: { machineCode: (machineCode as string).toUpperCase() } });
+    const machine = await prisma.machine.findFirst({
+      where: { machineCode: { equals: (machineCode as string).trim().toUpperCase(), mode: 'insensitive' } },
+    });
     if (!machine) {
       res.status(404).json({ success: false, message: 'Target kiosk machine not found' });
+      return;
+    }
+
+    const opState = (machine as any).operationalState || 'ACTIVE';
+    if (opState === 'DISABLED') {
+      res.status(403).json({ success: false, message: 'Printing is currently unavailable for this machine.' });
       return;
     }
 

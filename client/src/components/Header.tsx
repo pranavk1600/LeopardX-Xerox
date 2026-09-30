@@ -20,17 +20,17 @@ export const Header: React.FC<HeaderProps> = ({ machine }) => {
   ];
 
   return (
-    <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md border-b border-slate-800">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/print?machine=PUNE-COLLEGE-001" className="flex items-center gap-2.5 group">
-          <div className="bg-gradient-to-tr from-amber-500 to-orange-500 p-2 rounded-xl text-white shadow-sm group-hover:scale-105 transition-transform">
-            <Printer className="w-5 h-5" />
+    <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md border-b border-slate-800 w-full max-w-full overflow-hidden">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between min-w-0">
+        <Link to="/print?machine=PUNE-COLLEGE-001" className="flex items-center gap-2 group min-w-0 flex-shrink-0">
+          <div className="bg-gradient-to-tr from-amber-500 to-orange-500 p-1.5 sm:p-2 rounded-xl text-white shadow-sm group-hover:scale-105 transition-transform flex-shrink-0">
+            <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <h1 className="font-bold text-base tracking-tight leading-none text-white flex items-center gap-1">
+          <div className="min-w-0">
+            <h1 className="font-bold text-sm sm:text-base tracking-tight leading-none text-white flex items-center gap-0.5 sm:gap-1 truncate">
               Leopard<span className="text-amber-400">X</span> Xerox
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium">Self-Service Kiosk</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">Self-Service Kiosk</p>
           </div>
         </Link>
 
@@ -57,21 +57,21 @@ export const Header: React.FC<HeaderProps> = ({ machine }) => {
         </nav>
 
         {/* Machine Status & Mobile Toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {machine && (
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col items-end min-w-0">
               <div className="flex items-center gap-1 text-xs font-semibold">
                 {machine.status === 'ONLINE' ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30 text-[11px]">
-                    <CheckCircle2 className="w-3 h-3" /> ONLINE
+                  <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-full border border-emerald-500/30 text-[10px] sm:text-[11px] whitespace-nowrap">
+                    <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> ONLINE
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-red-400 bg-red-950/60 px-2 py-0.5 rounded-full border border-red-500/30 text-[11px]">
-                    <AlertCircle className="w-3 h-3" /> OFFLINE
+                  <span className="inline-flex items-center gap-1 text-red-400 bg-red-950/60 px-1.5 sm:px-2 py-0.5 rounded-full border border-red-500/30 text-[10px] sm:text-[11px] whitespace-nowrap">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" /> OFFLINE
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-400 flex items-center gap-0.5 mt-0.5 truncate max-w-[110px]">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 hidden xs:flex sm:flex items-center gap-0.5 mt-0.5 truncate max-w-[70px] sm:max-w-[110px]">
                 <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
                 <span className="truncate">{machine.name}</span>
               </span>
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({ machine }) => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none"
+            className="md:hidden p-1.5 sm:p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none flex-shrink-0"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

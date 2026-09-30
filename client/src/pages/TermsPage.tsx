@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { ShieldCheck, FileText, Lock, AlertTriangle, CreditCard, Scale, HelpCircle } from 'lucide-react';
@@ -42,7 +43,7 @@ export const TermsPage: React.FC = () => {
               <span>2. Description of Kiosk Service & Document Privacy</span>
             </h2>
             <p>
-              LeopardX Xerox enables customers to upload PDF documents via smartphone or mobile web browser, configure print settings (Color vs B&W, copies, page range), pay online via Cashfree Payments, and receive instant physical printouts at our physical kiosk machines.
+              LeopardX Xerox enables customers to upload PDF documents via smartphone or mobile web browser, configure print settings (copies, page range), pay online via Cashfree Payments, and receive instant physical printouts at our physical kiosk machines.
             </p>
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
               <h4 className="font-semibold text-amber-400">Strict Document Privacy Policy:</h4>
@@ -84,9 +85,10 @@ export const TermsPage: React.FC = () => {
             </p>
             <ul className="list-disc list-inside space-y-1 text-slate-400 pl-2">
               <li>Standard A4 Black & White Printing: ₹2.00 per page.</li>
-              <li>Standard A4 Color Printing: ₹10.00 per page.</li>
-              <li>A3 Size Multiplier: 2.0× standard rate.</li>
             </ul>
+            <p>
+              LeopardX Xerox currently provides exclusively standard A4 Black & White printing at ₹2.00 per page.
+            </p>
             <p>
               Payments are processed securely through <strong>Cashfree Payments India Private Limited</strong> using UPI, Debit/Credit Cards, Net Banking, or Wallets. LeopardX Technologies does not store your card details, UPI PIN, or bank credentials.
             </p>
@@ -102,7 +104,7 @@ export const TermsPage: React.FC = () => {
               While we strive for 100% kiosk availability and print reliability, LeopardX Technologies is not liable for temporary service interruptions, paper jams, printer hardware failures, power outages, or network connectivity issues beyond our control.
             </p>
             <p>
-              In the event of a hardware or printing failure after verified payment, eligible customers will be provided a full refund in accordance with our <a href="/refunds" className="text-amber-400 underline">Refunds & Cancellations Policy</a>.
+              In the event of a hardware or printing failure after verified payment, eligible customers will be provided a full refund in accordance with our <Link to="/refunds" className="text-amber-400 underline">Refunds & Cancellations Policy</Link>.
             </p>
           </section>
 
@@ -115,11 +117,17 @@ export const TermsPage: React.FC = () => {
             <p>
               These terms shall be governed by and construed in accordance with the laws of India. Any disputes arising out of these terms shall be subject to the exclusive jurisdiction of the courts in Pune, Maharashtra.
             </p>
-            <div className="pt-2 text-slate-400">
+            <div className="pt-2 text-slate-400 space-y-1">
               <p>For questions or formal inquiries regarding these Terms & Conditions:</p>
               <p className="text-amber-400 font-semibold mt-1">LeopardX Technologies</p>
-              <p>Email: <a href="mailto:support@leopardx.in" className="text-white underline">support@leopardx.in</a></p>
-              <p>Address: IT Park, Shivaji Nagar, Pune, Maharashtra - 411001, India</p>
+              <p>Email: <a href="mailto:leopardxtechnology@gmail.com" className="text-white underline">leopardxtechnology@gmail.com</a></p>
+              <p className="pt-1">
+                Address:<br />
+                At Post Khanapur,<br />
+                Taluka Bhor,<br />
+                District Pune,<br />
+                Maharashtra, India
+              </p>
             </div>
           </section>
         </div>

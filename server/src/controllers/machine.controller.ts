@@ -11,14 +11,20 @@ export const getMachineByCode = async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    const machine = await prisma.machine.findUnique({
-      where: { machineCode: machineCode.toUpperCase() },
+    const machine = await prisma.machine.findFirst({
+      where: {
+        machineCode: {
+          equals: machineCode.trim().toUpperCase(),
+          mode: 'insensitive',
+        },
+      },
       select: {
         id: true,
         machineCode: true,
         name: true,
         location: true,
         status: true,
+        operationalState: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -29,9 +35,29 @@ export const getMachineByCode = async (req: Request, res: Response, next: NextFu
       return;
     }
 
+    const opState = (machine as any).operationalState || 'ACTIVE';
+    if (opState === 'DISABLED') {
+      res.status(403).json({
+        success: false,
+        message: 'Printing is currently unavailable for this machine.',
+        disabled: true,
+        data: {
+          machineCode: machine.machineCode,
+          name: machine.name,
+          location: machine.location,
+          status: machine.status,
+          operationalState: 'DISABLED',
+        },
+      });
+      return;
+    }
+
     res.json({
       success: true,
-      data: machine,
+      data: {
+        ...machine,
+        operationalState: opState,
+      },
     });
   } catch (error) {
     next(error);
@@ -63,6 +89,7 @@ export const registerMachine = async (req: Request, res: Response, next: NextFun
         location: kioskLocation,
         token,
         status: 'ONLINE',
+        operationalState: 'ACTIVE',
       },
     });
 
@@ -76,6 +103,7 @@ export const registerMachine = async (req: Request, res: Response, next: NextFun
         location: machine.location,
         token: machine.token,
         status: machine.status,
+        operationalState: (machine as any).operationalState || 'ACTIVE',
       },
     });
   } catch (error) {
