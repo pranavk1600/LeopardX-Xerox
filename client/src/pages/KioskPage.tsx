@@ -61,6 +61,7 @@ export const KioskPage: React.FC = () => {
     copies: 1,
     colorMode: 'BW',
     paperSize: 'A4',
+    printType: 'SINGLE_SIDE',
   });
   const [pageRangeMode, setPageRangeMode] = useState<'all' | 'custom'>('all');
   const [customRangeInput, setCustomRangeInput] = useState<string>('');
@@ -267,6 +268,7 @@ export const KioskPage: React.FC = () => {
       copies: 1,
       colorMode: 'BW',
       paperSize: 'A4',
+      printType: 'SINGLE_SIDE',
     });
   };
 
@@ -589,75 +591,58 @@ export const KioskPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* 2. Color Mode */}
+                      {/* 2. Color Mode (Black & White Only V1) */}
                       <div className="flex flex-col gap-2 min-w-0">
                         <label className="text-xs font-bold text-slate-700">Color Mode</label>
-                        <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                        <div className="w-full min-w-0">
                           <button
                             type="button"
                             onClick={() => setOptions((p) => ({ ...p, colorMode: 'BW' }))}
-                            className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs font-bold border flex flex-col items-center gap-0.5 transition text-center min-w-0 ${
-                              options.colorMode === 'BW'
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                            }`}
+                            className="w-full py-2.5 px-3 rounded-xl text-xs font-bold border flex items-center justify-between bg-slate-900 text-white border-slate-900 shadow-sm"
                           >
-                            <span className="truncate w-full">Black & White</span>
+                            <span className="truncate">Black & White</span>
                             <span className="text-[10px] opacity-80 whitespace-nowrap">₹2.00 / page</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setOptions((p) => ({ ...p, colorMode: 'COLOR' }))}
-                            className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs font-bold border flex flex-col items-center gap-0.5 transition text-center min-w-0 ${
-                              options.colorMode === 'COLOR'
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-orange-600 shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            <span className="truncate w-full">Color</span>
-                            <span className="text-[10px] opacity-80 whitespace-nowrap">₹10.00 / page</span>
                           </button>
                         </div>
                       </div>
 
-                      {/* 3. Paper Size & Copies */}
-                      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full min-w-0">
-                        <div className="flex flex-col gap-1.5 min-w-0">
-                          <label className="text-xs font-bold text-slate-700">Paper Size</label>
-                          <select
-                            value={options.paperSize}
-                            onChange={(e) => setOptions((p) => ({ ...p, paperSize: e.target.value as any }))}
-                            className="w-full px-2.5 sm:px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:ring-2 focus:ring-amber-500 focus:outline-none min-w-0"
+                      {/* 3. Copies */}
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                          <Copy className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> Copies
+                        </label>
+                        <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50 min-w-0 max-w-[200px]">
+                          <button
+                            type="button"
+                            onClick={() => handleCopiesChange(-1)}
+                            className="px-3 py-2 font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 flex-shrink-0"
                           >
-                            <option value="A4">A4 (Standard)</option>
-                            <option value="A3">A3 (Large)</option>
-                          </select>
+                            -
+                          </button>
+                          <span className="flex-1 text-center font-bold text-xs text-slate-900 min-w-0">
+                            {options.copies}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiesChange(1)}
+                            className="px-3 py-2 font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 flex-shrink-0"
+                          >
+                            +
+                          </button>
                         </div>
+                      </div>
 
-                        <div className="flex flex-col gap-1.5 min-w-0">
-                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                            <Copy className="w-3 h-3 text-slate-500 flex-shrink-0" /> Copies
-                          </label>
-                          <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => handleCopiesChange(-1)}
-                              className="px-2.5 sm:px-3 py-1.5 font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 flex-shrink-0"
-                            >
-                              -
-                            </button>
-                            <span className="flex-1 text-center font-bold text-xs text-slate-900 min-w-0">
-                              {options.copies}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopiesChange(1)}
-                              className="px-2.5 sm:px-3 py-1.5 font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 flex-shrink-0"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
+                      {/* 4. Print Type (Single Side vs Back to Back) */}
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <label className="text-xs font-bold text-slate-700">Print Type</label>
+                        <select
+                          value={options.printType}
+                          onChange={(e) => setOptions((p) => ({ ...p, printType: e.target.value as any }))}
+                          className="w-full px-2.5 sm:px-3 py-2.5 border border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:ring-2 focus:ring-amber-500 focus:outline-none min-w-0"
+                        >
+                          <option value="SINGLE_SIDE">Single Side — ₹2.00 / page</option>
+                          <option value="BACK_TO_BACK">Back to Back — ₹4.00 / page</option>
+                        </select>
                       </div>
                     </div>
 

@@ -87,7 +87,7 @@ export const RefundsPage: React.FC = () => {
             <p>Refunds will NOT be issued under the following user-side situations:</p>
             <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
               <li>User uploaded the wrong PDF file or incorrect document version.</li>
-              <li>User selected unintended print settings (e.g. selected Color instead of Black & White, or incorrect page range).</li>
+              <li>User selected unintended print settings (e.g. incorrect page range or number of copies).</li>
               <li>Document printed successfully at the kiosk, but user failed to collect the paper printout from the kiosk tray.</li>
               <li>Typographical errors or existing formatting mistakes present within the user's original document file.</li>
             </ul>

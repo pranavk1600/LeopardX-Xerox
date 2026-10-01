@@ -1,5 +1,6 @@
 export type ColorMode = 'BW' | 'COLOR';
 export type PaperSize = 'A4' | 'A3';
+export type PrintType = 'SINGLE_SIDE' | 'BACK_TO_BACK';
 
 export type MachineStatus = 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
 
@@ -24,6 +25,7 @@ export interface PrintOptions {
   copies: number;
   colorMode: ColorMode;
   paperSize: PaperSize;
+  printType: PrintType;
 }
 
 export interface PriceSummary {
@@ -53,6 +55,7 @@ export interface PrintJob {
   copies: number;
   colorMode: ColorMode;
   paperSize: PaperSize;
+  printType: PrintType;
   price: number;
   status: PrintJobStatus;
   createdAt: string;

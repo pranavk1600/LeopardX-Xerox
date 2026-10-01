@@ -5,7 +5,7 @@ import { prisma } from '../config/prisma';
 import { storageService } from '../services/storage.service';
 import { pricingService } from '../services/pricing.service';
 import { socketManagerInstance } from '../sockets/socket.manager';
-import { ColorMode, PaperSize } from '@prisma/client';
+import { ColorMode, PaperSize, PrintType } from '@prisma/client';
 
 export const uploadPdf = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -49,7 +49,7 @@ export const uploadPdf = async (req: Request, res: Response, next: NextFunction)
 
 export const calculatePrice = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { totalPages, selectedPages, copies, colorMode, paperSize } = req.body;
+    const { totalPages, selectedPages, copies, colorMode, paperSize, printType } = req.body;
 
     if (!totalPages || totalPages <= 0) {
       res.status(400).json({ success: false, message: 'Invalid total pages' });
@@ -62,6 +62,7 @@ export const calculatePrice = async (req: Request, res: Response, next: NextFunc
       copies: Number(copies) || 1,
       colorMode: colorMode === 'COLOR' ? ColorMode.COLOR : ColorMode.BW,
       paperSize: paperSize === 'A3' ? PaperSize.A3 : PaperSize.A4,
+      printType: printType === 'BACK_TO_BACK' ? PrintType.BACK_TO_BACK : PrintType.SINGLE_SIDE,
     });
 
     res.json({
@@ -75,7 +76,7 @@ export const calculatePrice = async (req: Request, res: Response, next: NextFunc
 
 export const createPrintJob = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { machineCode, fileName, totalPages, selectedPages, copies, colorMode, paperSize } = req.body;
+    const { machineCode, fileName, totalPages, selectedPages, copies, colorMode, paperSize, printType } = req.body;
 
     if (!machineCode || !fileName || !totalPages) {
       res.status(400).json({ success: false, message: 'Missing required parameters (machineCode, fileName, totalPages)' });
@@ -101,12 +102,15 @@ export const createPrintJob = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    const resolvedPrintType = printType === 'BACK_TO_BACK' ? PrintType.BACK_TO_BACK : PrintType.SINGLE_SIDE;
+
     const pricing = pricingService.calculatePrice({
       totalPages: Number(totalPages),
       selectedPages: selectedPages || 'all',
       copies: Number(copies) || 1,
       colorMode: colorMode === 'COLOR' ? ColorMode.COLOR : ColorMode.BW,
       paperSize: paperSize === 'A3' ? PaperSize.A3 : PaperSize.A4,
+      printType: resolvedPrintType,
     });
 
     const fileUrl = `/uploads/${fileName}`;
@@ -121,6 +125,7 @@ export const createPrintJob = async (req: Request, res: Response, next: NextFunc
         copies: Number(copies) || 1,
         colorMode: colorMode === 'COLOR' ? ColorMode.COLOR : ColorMode.BW,
         paperSize: paperSize === 'A3' ? PaperSize.A3 : PaperSize.A4,
+        printType: resolvedPrintType,
         price: pricing.totalPrice,
         status: 'CREATED',
       },
@@ -185,6 +190,7 @@ export const directPrintJob = async (req: Request, res: Response, next: NextFunc
         copies: updatedJob.copies,
         colorMode: updatedJob.colorMode,
         paperSize: updatedJob.paperSize,
+        printType: updatedJob.printType,
       });
 
       if (!dispatched) {

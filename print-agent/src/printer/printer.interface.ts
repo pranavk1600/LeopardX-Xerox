@@ -3,6 +3,7 @@ export interface PrintOptions {
   selectedPages?: string; // "all" or "1-5, 8"
   colorMode: 'BW' | 'COLOR';
   paperSize: 'A4' | 'A3';
+  printType?: 'SINGLE_SIDE' | 'BACK_TO_BACK';
   printerName?: string;
 }
 

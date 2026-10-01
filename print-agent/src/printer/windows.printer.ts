@@ -47,6 +47,12 @@ export class WindowsPrinterService implements IPrinterService {
         printConfig.paperSize = options.paperSize.toLowerCase();
       }
 
+      if (options.printType === 'BACK_TO_BACK') {
+        printConfig.side = 'duplex';
+      } else {
+        printConfig.side = 'simplex';
+      }
+
       console.log(`[WindowsPrinterService] Sending job to print spooler...`);
       await pdfToPrinter.print(filePath, printConfig);
       console.log(`[WindowsPrinterService] Print job sent to printer successfully.`);

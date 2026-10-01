@@ -1,11 +1,12 @@
-import { ColorMode, PaperSize, PaymentGateway } from '@prisma/client';
+import { ColorMode, PaperSize, PaymentGateway, PrintType } from '@prisma/client';
 
 export interface PriceCalculationParams {
   totalPages: number;
   selectedPages: string; // "all" or "1-5, 8"
   copies: number;
-  colorMode: ColorMode;
-  paperSize: PaperSize;
+  colorMode?: ColorMode;
+  paperSize?: PaperSize;
+  printType?: PrintType;
 }
 
 export interface PriceCalculationResult {

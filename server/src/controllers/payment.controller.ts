@@ -157,6 +157,7 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
         copies: updatedJob.copies,
         colorMode: updatedJob.colorMode,
         paperSize: updatedJob.paperSize,
+        printType: updatedJob.printType,
       });
 
       if (!dispatched) {

@@ -1,8 +1,9 @@
-import { ColorMode, PaperSize } from '@prisma/client';
+import { ColorMode, PaperSize, PrintType } from '@prisma/client';
 import { PriceCalculationParams, PriceCalculationResult } from '../types';
 
 export class PricingService {
-  private bwPricePerPage = 2.0; // ₹2.00 per page for Black & White
+  private bwPricePerPage = 2.0; // ₹2.00 per page for Single Side Black & White
+  private backToBackPricePerPage = 4.0; // ₹4.00 per page for Back to Back
   private colorPricePerPage = 10.0; // ₹10.00 per page for Color
 
   public parseSelectedPageCount(totalPages: number, selectedPages: string): number {
@@ -41,9 +42,9 @@ export class PricingService {
   public calculatePrice(params: PriceCalculationParams): PriceCalculationResult {
     const pagesToPrint = this.parseSelectedPageCount(params.totalPages, params.selectedPages);
     
-    let pricePerPage = params.colorMode === ColorMode.COLOR 
-      ? this.colorPricePerPage 
-      : this.bwPricePerPage;
+    let pricePerPage = (params.printType === PrintType.BACK_TO_BACK || (params.printType as string) === 'BACK_TO_BACK')
+      ? this.backToBackPricePerPage
+      : (params.colorMode === ColorMode.COLOR ? this.colorPricePerPage : this.bwPricePerPage);
 
     if (params.paperSize === PaperSize.A3) {
       pricePerPage *= 2.0; // A3 is double rate

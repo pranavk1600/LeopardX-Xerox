@@ -81,9 +81,15 @@ export const ServicesPricingPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-800">
                 <tr>
-                  <td className="py-3 px-4 font-semibold text-white">Black & White (Monochrome)</td>
+                  <td className="py-3 px-4 font-semibold text-white">Single Side (Monochrome B&W)</td>
                   <td className="py-3 px-4">A4 (210 × 297 mm)</td>
                   <td className="py-3 px-4 text-amber-400 font-bold">₹2.00</td>
+                  <td className="py-3 px-4 text-emerald-400 font-medium">Included free</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-4 font-semibold text-white">Back to Back (Duplex B&W)</td>
+                  <td className="py-3 px-4">A4 (210 × 297 mm)</td>
+                  <td className="py-3 px-4 text-amber-400 font-bold">₹4.00</td>
                   <td className="py-3 px-4 text-emerald-400 font-medium">Included free</td>
                 </tr>
               </tbody>

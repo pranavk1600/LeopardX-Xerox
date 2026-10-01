@@ -80,9 +80,9 @@ export class AgentSocketManager {
   }
 
   private async handlePrintJob(jobData: any): Promise<void> {
-    const { id: jobId, fileName, fileUrl, selectedPages, copies, colorMode, paperSize } = jobData;
+    const { id: jobId, fileName, fileUrl, selectedPages, copies, colorMode, paperSize, printType } = jobData;
 
-    console.log(`[Print Agent] Received print job: ${jobId}`);
+    console.log(`[Print Agent] Received print job: ${jobId} (PrintType: ${printType || 'SINGLE_SIDE'})`);
 
     if (config.printSimulationMode) {
       console.log(`[Print Agent SIMULATION] Starting simulated printing...`);
@@ -115,6 +115,7 @@ export class AgentSocketManager {
         selectedPages: selectedPages || 'all',
         colorMode: colorMode || 'BW',
         paperSize: paperSize || 'A4',
+        printType: printType || 'SINGLE_SIDE',
         printerName: config.printerName || undefined,
       });
 

@@ -38,6 +38,11 @@ enum PaperSize {
   A3
 }
 
+enum PrintType {
+  SINGLE_SIDE
+  BACK_TO_BACK
+}
+
 enum PaymentGateway {
   CASHFREE
   RAZORPAY
@@ -76,6 +81,7 @@ model PrintJob {
   copies        Int            @default(1)
   colorMode     ColorMode      @default(BW) @map("color_mode")
   paperSize     PaperSize      @default(A4) @map("paper_size")
+  printType     PrintType      @default(SINGLE_SIDE) @map("print_type")
   price         Float
   status        PrintJobStatus @default(CREATED)
   createdAt     DateTime       @default(now()) @map("created_at")
