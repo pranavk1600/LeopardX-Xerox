@@ -62,6 +62,20 @@ export class PricingService {
       copies,
     };
   }
+
+  public calculatePhysicalSheets(params: {
+    totalPages: number;
+    selectedPages?: string;
+    copies?: number;
+    printType?: PrintType | string;
+  }): number {
+    const pagesToPrint = this.parseSelectedPageCount(params.totalPages, params.selectedPages || 'all');
+    const copies = Math.max(1, params.copies || 1);
+    const isBackToBack = params.printType === PrintType.BACK_TO_BACK || (params.printType as string) === 'BACK_TO_BACK';
+
+    const sheetsPerCopy = isBackToBack ? Math.ceil(pagesToPrint / 2) : pagesToPrint;
+    return sheetsPerCopy * copies;
+  }
 }
 
 export const pricingService = new PricingService();

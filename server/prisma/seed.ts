@@ -2,12 +2,44 @@ import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database with initial kiosk machine...');
+  console.log('Seeding database with initial Super Admin and kiosk machine...');
 
+  // 1. Seed Super Admin Account
+  const adminEmail = 'kondhalkarp1600@gmail.com';
+  const rawPassword = process.env.SUPER_ADMIN_PASSWORD || 'Admin@LeopardX2026';
+
+  const existingAdmin = await prisma.superAdmin.findUnique({
+    where: { email: adminEmail },
+  });
+
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+  if (existingAdmin) {
+    await prisma.superAdmin.update({
+      where: { id: existingAdmin.id },
+      data: {
+        isActive: true,
+        passwordHash,
+      },
+    });
+    console.log(`✅ Super Admin (${adminEmail}) verified, activated & password updated.`);
+  } else {
+    const newAdmin = await prisma.superAdmin.create({
+      data: {
+        email: adminEmail,
+        passwordHash,
+        isActive: true,
+      },
+    });
+    console.log(`✅ Initial Super Admin created with ID: ${newAdmin.id} (${adminEmail})`);
+  }
+
+  // 2. Seed Machine PUNE-COLLEGE-001
   const machineCode = 'PUNE-COLLEGE-001';
   // Generate a secure 256-bit machine authentication token
   const token = crypto.randomBytes(32).toString('hex');
@@ -17,6 +49,8 @@ async function main() {
     update: {
       status: 'ONLINE',
       token,
+      paperStock: 250,
+      lowPaperThreshold: 30,
     },
     create: {
       machineCode,
@@ -24,6 +58,8 @@ async function main() {
       location: 'Main Library Ground Floor',
       status: 'ONLINE',
       token,
+      paperStock: 250,
+      lowPaperThreshold: 30,
     },
   });
 
@@ -47,6 +83,7 @@ async function main() {
     console.log('✅ Updated print-agent/.env with the registered secure MACHINE_TOKEN.');
   }
 }
+
 
 main()
   .catch((e) => {

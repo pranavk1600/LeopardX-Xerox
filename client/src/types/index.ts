@@ -10,6 +10,9 @@ export interface KioskMachine {
   name: string;
   location: string;
   status: MachineStatus;
+  paperStock?: number;
+  lowPaperThreshold?: number;
+  paperStatus?: string;
 }
 
 export interface UploadedPdfInfo {

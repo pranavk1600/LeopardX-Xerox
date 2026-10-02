@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { prisma } from '../config/prisma';
 import { PrintJobStatus } from '@prisma/client';
 import { storageService } from '../services/storage.service';
+import { pricingService } from '../services/pricing.service';
 
 export class SocketManager {
   private io: Server;
@@ -69,15 +70,55 @@ export class SocketManager {
           const { jobId, status, errorMessage } = data;
           console.log(`[Backend Received Agent Status] Job ${jobId} -> Status: ${status}`);
 
-          // Update DB record
-          const updatedJob = await prisma.printJob.update({
-            where: { id: jobId },
-            data: { status },
-          });
+          const existingJob = await prisma.printJob.findUnique({ where: { id: jobId } });
 
-          // Trigger automatic temporary PDF cleanup when job reaches COMPLETED
-          if (status === 'COMPLETED' && updatedJob.fileName) {
-            storageService.deleteTemporaryPdf(updatedJob.fileName);
+          let updatedJobRecord;
+
+          // Deduct paper stock ONLY when status transitions to COMPLETED for the first time
+          if (status === 'COMPLETED' && existingJob && existingJob.status !== 'COMPLETED') {
+            const paperUsed = pricingService.calculatePhysicalSheets({
+              totalPages: existingJob.totalPages,
+              selectedPages: existingJob.selectedPages,
+              copies: existingJob.copies,
+              printType: existingJob.printType,
+            });
+
+            // Update DB record with COMPLETED status & paperUsed
+            updatedJobRecord = await prisma.printJob.update({
+              where: { id: jobId },
+              data: { status, paperUsed },
+            });
+
+            // Atomic paper deduction
+            await prisma.machine.update({
+              where: { id: updatedJobRecord.machineId },
+              data: {
+                paperStock: {
+                  decrement: paperUsed,
+                },
+              },
+            });
+
+            // Safety check: ensure paperStock is non-negative
+            const updatedMachine = await prisma.machine.findUnique({ where: { id: updatedJobRecord.machineId } });
+            if (updatedMachine && updatedMachine.paperStock < 0) {
+              await prisma.machine.update({
+                where: { id: updatedJobRecord.machineId },
+                data: { paperStock: 0 },
+              });
+            }
+
+            console.log(`[Paper Stock] Deducted ${paperUsed} physical sheet(s) for Job ${jobId}. Remaining Stock: ${Math.max(0, (updatedMachine?.paperStock || 0))}`);
+
+            if (updatedJobRecord.fileName) {
+              storageService.deleteTemporaryPdf(updatedJobRecord.fileName);
+            }
+          } else {
+            // Update DB record for non-COMPLETED statuses
+            updatedJobRecord = await prisma.printJob.update({
+              where: { id: jobId },
+              data: { status },
+            });
           }
 
           // Notify subscribed clients
@@ -86,7 +127,7 @@ export class SocketManager {
             jobId,
             status,
             errorMessage,
-            updatedAt: updatedJob.updatedAt,
+            updatedAt: updatedJobRecord.updatedAt,
           });
         } catch (error) {
           console.error('[Socket Job Status Error]', error);

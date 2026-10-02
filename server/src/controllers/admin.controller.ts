@@ -1,36 +1,61 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
 
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'admin123';
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'leopardx_admin_secret_token_2026';
+const getJwtSecret = (): string => {
+  return process.env.JWT_SECRET || 'leopardx_super_admin_jwt_secret_key_2026_secure';
+};
 
 export const adminLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { passcode, username, password } = req.body;
-    const providedPass = passcode || password || username;
+    const { email, username, password } = req.body;
+    const providedEmail = (email || username || '').trim().toLowerCase();
 
-    if (!providedPass) {
-      res.status(400).json({ success: false, message: 'Passcode is required' });
+    if (!providedEmail || !password) {
+      res.status(400).json({ success: false, message: 'Email and password are required' });
       return;
     }
 
-    if (providedPass !== ADMIN_PASSCODE && providedPass !== ADMIN_TOKEN) {
-      res.status(401).json({ success: false, message: 'Invalid Admin passcode' });
+    const admin = await prisma.superAdmin.findUnique({
+      where: { email: providedEmail },
+    });
+
+    if (!admin || !admin.isActive) {
+      res.status(401).json({ success: false, message: 'Invalid Super Admin credentials or inactive account' });
       return;
     }
+
+    const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+
+    if (!isValidPassword) {
+      res.status(401).json({ success: false, message: 'Invalid Super Admin credentials' });
+      return;
+    }
+
+    const token = jwt.sign(
+      { id: admin.id, email: admin.email },
+      getJwtSecret(),
+      { expiresIn: '24h' }
+    );
 
     res.json({
       success: true,
       message: 'Super Admin authenticated successfully',
       data: {
-        token: ADMIN_TOKEN,
+        token,
+        admin: {
+          id: admin.id,
+          email: admin.email,
+        },
       },
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 export const getAllMachines = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -59,6 +84,12 @@ export const getAllMachines = async (req: Request, res: Response, next: NextFunc
         ? m.printJobs.reduce((latest, j) => (j.createdAt > latest ? j.createdAt : latest), m.printJobs[0].createdAt)
         : m.updatedAt;
 
+      const paperStatus = m.paperStock === 0
+        ? 'OUT_OF_PAPER'
+        : m.paperStock <= m.lowPaperThreshold
+        ? 'LOW_PAPER'
+        : 'NORMAL';
+
       return {
         id: m.id,
         machineCode: m.machineCode,
@@ -67,6 +98,9 @@ export const getAllMachines = async (req: Request, res: Response, next: NextFunc
         status: m.status,
         operationalState: (m as any).operationalState || 'ACTIVE',
         token: m.token,
+        paperStock: m.paperStock,
+        lowPaperThreshold: m.lowPaperThreshold,
+        paperStatus,
         createdAt: m.createdAt,
         updatedAt: m.updatedAt,
         totalJobs: m.printJobs.length,
@@ -78,9 +112,16 @@ export const getAllMachines = async (req: Request, res: Response, next: NextFunc
       };
     });
 
+    const paperSummary = {
+      normalCount: formattedMachines.filter((m) => m.paperStatus === 'NORMAL').length,
+      lowPaperCount: formattedMachines.filter((m) => m.paperStatus === 'LOW_PAPER').length,
+      outOfPaperCount: formattedMachines.filter((m) => m.paperStatus === 'OUT_OF_PAPER').length,
+    };
+
     res.json({
       success: true,
       data: formattedMachines,
+      paperSummary,
     });
   } catch (error) {
     next(error);
@@ -95,9 +136,18 @@ export const getMachineById = async (req: Request, res: Response, next: NextFunc
         OR: [{ id }, { machineCode: id.toUpperCase() }],
       },
       include: {
-        printJobs: {
+        paperRefills: {
           orderBy: { createdAt: 'desc' },
           take: 20,
+        },
+        printJobs: {
+          where: {
+            payment: {
+              status: 'SUCCESS',
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
           include: { payment: true },
         },
       },
@@ -122,6 +172,12 @@ export const getMachineById = async (req: Request, res: Response, next: NextFunc
       ? allJobs.reduce((latest, j) => (j.createdAt > latest ? j.createdAt : latest), allJobs[0].createdAt)
       : machine.updatedAt;
 
+    const paperStatus = machine.paperStock === 0
+      ? 'OUT_OF_PAPER'
+      : machine.paperStock <= machine.lowPaperThreshold
+      ? 'LOW_PAPER'
+      : 'NORMAL';
+
     res.json({
       success: true,
       data: {
@@ -132,6 +188,9 @@ export const getMachineById = async (req: Request, res: Response, next: NextFunc
         status: machine.status,
         operationalState: (machine as any).operationalState || 'ACTIVE',
         token: machine.token,
+        paperStock: machine.paperStock,
+        lowPaperThreshold: machine.lowPaperThreshold,
+        paperStatus,
         createdAt: machine.createdAt,
         updatedAt: machine.updatedAt,
         totalJobs: allJobs.length,
@@ -140,7 +199,20 @@ export const getMachineById = async (req: Request, res: Response, next: NextFunc
         revenue,
         pagesPrinted,
         lastActivity: lastJob,
-        recentJobs: machine.printJobs,
+        paperRefills: machine.paperRefills,
+        recentJobs: machine.printJobs.map((j) => {
+          const paymentTimestamp = j.payment?.updatedAt || j.payment?.createdAt || j.createdAt;
+          return {
+            id: j.id,
+            totalPages: j.totalPages,
+            price: j.price,
+            status: j.status,
+            paymentStatus: j.payment?.status || 'SUCCESS',
+            paymentId: j.payment?.paymentId || null,
+            paymentDate: paymentTimestamp.toISOString(),
+            createdAt: paymentTimestamp.toISOString(),
+          };
+        }),
       },
     });
   } catch (error) {
@@ -319,3 +391,125 @@ export const enableMachine = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
+
+export const addPaperStock = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const { quantity } = req.body;
+    const addSheets = parseInt(quantity, 10);
+
+    if (isNaN(addSheets) || addSheets <= 0) {
+      res.status(400).json({ success: false, message: 'Please enter a valid positive number of paper sheets to add.' });
+      return;
+    }
+
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineCode: id.toUpperCase() }] },
+    });
+
+    if (!machine) {
+      res.status(404).json({ success: false, message: 'Machine not found' });
+      return;
+    }
+
+    const previousStock = machine.paperStock;
+    const newStock = previousStock + addSheets;
+    const adminEmail = (req as any).admin?.email || 'kondhalkarp1600@gmail.com';
+
+    const [updatedMachine, refillLog] = await prisma.$transaction([
+      prisma.machine.update({
+        where: { id: machine.id },
+        data: { paperStock: newStock },
+      }),
+      prisma.paperRefill.create({
+        data: {
+          machineId: machine.id,
+          quantityAdded: addSheets,
+          previousStock,
+          newStock,
+          adminEmail,
+        },
+      }),
+    ]);
+
+    console.log(`[Super Admin] Added ${addSheets} sheets to Machine ${machine.machineCode}. Stock: ${previousStock} -> ${newStock}`);
+
+    res.json({
+      success: true,
+      message: `${addSheets} sheets added successfully.`,
+      data: {
+        id: updatedMachine.id,
+        machineCode: updatedMachine.machineCode,
+        paperStock: updatedMachine.paperStock,
+        lowPaperThreshold: updatedMachine.lowPaperThreshold,
+        paperStatus: updatedMachine.paperStock === 0 ? 'OUT_OF_PAPER' : updatedMachine.paperStock <= updatedMachine.lowPaperThreshold ? 'LOW_PAPER' : 'NORMAL',
+        refillLog,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePaperThreshold = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const { lowPaperThreshold } = req.body;
+    const threshold = parseInt(lowPaperThreshold, 10);
+
+    if (isNaN(threshold) || threshold < 0) {
+      res.status(400).json({ success: false, message: 'Please enter a valid low paper threshold.' });
+      return;
+    }
+
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineCode: id.toUpperCase() }] },
+    });
+
+    if (!machine) {
+      res.status(404).json({ success: false, message: 'Machine not found' });
+      return;
+    }
+
+    const updatedMachine = await prisma.machine.update({
+      where: { id: machine.id },
+      data: { lowPaperThreshold: threshold },
+    });
+
+    res.json({
+      success: true,
+      message: `Low paper threshold updated to ${threshold} sheets.`,
+      data: updatedMachine,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPaperRefillHistory = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineCode: id.toUpperCase() }] },
+    });
+
+    if (!machine) {
+      res.status(404).json({ success: false, message: 'Machine not found' });
+      return;
+    }
+
+    const refills = await prisma.paperRefill.findMany({
+      where: { machineId: machine.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    res.json({
+      success: true,
+      data: refills,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

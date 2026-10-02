@@ -56,17 +56,20 @@ enum PaymentStatus {
 }
 
 model Machine {
-  id               String           @id @default(uuid())
-  machineCode      String           @unique @map("machine_code")
-  name             String
-  location         String
-  status           MachineStatus    @default(OFFLINE)
-  operationalState OperationalState @default(ACTIVE) @map("operational_state")
-  token            String           @default(uuid())
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  id                String           @id @default(uuid())
+  machineCode       String           @unique @map("machine_code")
+  name              String
+  location          String
+  status            MachineStatus    @default(OFFLINE)
+  operationalState  OperationalState @default(ACTIVE) @map("operational_state")
+  token             String           @default(uuid())
+  paperStock        Int              @default(0) @map("paper_stock")
+  lowPaperThreshold Int              @default(30) @map("low_paper_threshold")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
 
-  printJobs        PrintJob[]
+  printJobs         PrintJob[]
+  paperRefills      PaperRefill[]
 
   @@map("machines")
 }
@@ -83,6 +86,7 @@ model PrintJob {
   paperSize     PaperSize      @default(A4) @map("paper_size")
   printType     PrintType      @default(SINGLE_SIDE) @map("print_type")
   price         Float
+  paperUsed     Int            @default(0) @map("paper_used")
   status        PrintJobStatus @default(CREATED)
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -108,3 +112,30 @@ model Payment {
 
   @@map("payments")
 }
+
+model SuperAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("super_admins")
+}
+
+model PaperRefill {
+  id            String   @id @default(uuid())
+  machineId     String   @map("machine_id")
+  quantityAdded Int      @map("quantity_added")
+  previousStock Int      @map("previous_stock")
+  newStock      Int      @map("new_stock")
+  adminEmail    String   @default("kondhalkarp1600@gmail.com") @map("admin_email")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  machine       Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@map("paper_refills")
+}
+
+

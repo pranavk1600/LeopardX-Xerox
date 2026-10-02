@@ -302,6 +302,19 @@ export const KioskPage: React.FC = () => {
           </div>
         )}
 
+        {/* Machine Out of Paper Warning Banner */}
+        {!loadingMachine && machine && (machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER') && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col items-center text-center gap-3 w-full max-w-full box-border min-w-0">
+            <AlertCircle className="w-9 h-9 sm:w-10 sm:h-10 text-red-500 flex-shrink-0" />
+            <div className="min-w-0 w-full">
+              <h3 className="font-bold text-sm sm:text-base">Machine Temporarily Unavailable: Out of Paper</h3>
+              <p className="text-xs text-red-600 mt-1.5 break-words leading-relaxed max-w-full font-medium">
+                This print kiosk has run out of paper sheets. Please request kiosk administrator to refill paper stock.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Active Flow: Machine OK */}
         {!loadingMachine && machine && (
           <>
@@ -462,15 +475,23 @@ export const KioskPage: React.FC = () => {
                     </div>
 
                     <div className="w-full flex-1 flex flex-col items-center justify-center py-6 sm:py-0">
-                      <label className="relative border-2 border-dashed border-amber-300 hover:border-amber-500 bg-amber-50/40 rounded-3xl p-4 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-amber-50 group w-[230px] h-[230px] max-w-[calc(100vw-48px)] sm:w-full sm:h-auto box-border min-w-0">
+                      <label className={`relative border-2 border-dashed rounded-3xl p-4 sm:p-8 flex flex-col items-center justify-center text-center transition-all group w-[230px] h-[230px] max-w-[calc(100vw-48px)] sm:w-full sm:h-auto box-border min-w-0 ${
+                        (machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER')
+                          ? 'border-slate-300 bg-slate-100/60 opacity-60 cursor-not-allowed'
+                          : 'border-amber-300 hover:border-amber-500 bg-amber-50/40 cursor-pointer hover:bg-amber-50'
+                      }`}>
                         <input
                           type="file"
                           accept="application/pdf,.pdf"
                           onChange={handleFileUpload}
-                          disabled={uploading}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          disabled={uploading || machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER'}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
                         />
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-500 text-white flex items-center justify-center mb-2.5 sm:mb-3 group-hover:scale-110 transition-transform shadow-md flex-shrink-0">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl text-white flex items-center justify-center mb-2.5 sm:mb-3 transition-transform shadow-md flex-shrink-0 ${
+                          (machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER')
+                            ? 'bg-slate-400'
+                            : 'bg-amber-500 group-hover:scale-110'
+                        }`}>
                           {uploading ? (
                             <div className="w-5 h-5 sm:w-6 sm:h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
                           ) : (
@@ -478,9 +499,17 @@ export const KioskPage: React.FC = () => {
                           )}
                         </div>
                         <p className="font-bold text-xs sm:text-sm text-slate-800 max-w-full break-words leading-tight px-1">
-                          {uploading ? 'Processing PDF...' : 'Tap to Choose PDF File'}
+                          {(machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER')
+                            ? 'Paper Stock Empty'
+                            : uploading
+                            ? 'Processing PDF...'
+                            : 'Tap to Choose PDF File'}
                         </p>
-                        <p className="text-[10px] sm:text-xs text-slate-500 mt-1.5 max-w-full break-words leading-tight px-1">Supports PDF format up to 20MB</p>
+                        <p className="text-[10px] sm:text-xs text-slate-500 mt-1.5 max-w-full break-words leading-tight px-1">
+                          {(machine.paperStock === 0 || machine.paperStatus === 'OUT_OF_PAPER')
+                            ? 'Refill paper to resume printing'
+                            : 'Supports PDF format up to 20MB'}
+                        </p>
                       </label>
                     </div>
 
@@ -647,49 +676,72 @@ export const KioskPage: React.FC = () => {
                     </div>
 
                     {/* Step 3: Order Price Summary & Cashfree Payment Button */}
-                    <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-lg flex flex-col gap-3.5 sm:gap-4 w-full max-w-full box-border min-w-0">
-                      <div className="flex items-center justify-between gap-2 min-w-0">
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-slate-400">Total Price</p>
-                          <div className="flex items-baseline gap-1 mt-0.5 truncate">
-                            <span className="text-xl sm:text-2xl font-black text-amber-400">
-                              ₹{priceSummary ? priceSummary.totalPrice.toFixed(2) : '0.00'}
-                            </span>
-                            <span className="text-[10px] sm:text-[11px] text-slate-400 truncate">
-                              ({priceSummary?.pagesToPrint || 0} pgs × {options.copies} copy)
-                            </span>
+                    {(() => {
+                      const pagesToPrint = priceSummary?.pagesToPrint || pdfInfo?.totalPages || 0;
+                      const copies = options.copies || 1;
+                      const requiredSheets = options.printType === 'BACK_TO_BACK'
+                        ? Math.ceil(pagesToPrint / 2) * copies
+                        : pagesToPrint * copies;
+                      const availableSheets = machine?.paperStock ?? 0;
+                      const isInsufficientPaper = availableSheets < requiredSheets;
+
+                      return (
+                        <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-lg flex flex-col gap-3.5 sm:gap-4 w-full max-w-full box-border min-w-0">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-slate-400">Total Price</p>
+                              <div className="flex items-baseline gap-1 mt-0.5 truncate">
+                                <span className="text-xl sm:text-2xl font-black text-amber-400">
+                                  ₹{priceSummary ? priceSummary.totalPrice.toFixed(2) : '0.00'}
+                                </span>
+                                <span className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+                                  ({priceSummary?.pagesToPrint || 0} pgs × {options.copies} copy • {requiredSheets} {requiredSheets === 1 ? 'sheet' : 'sheets'})
+                                </span>
+                              </div>
+                            </div>
+                            {calculatingPrice && (
+                              <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                            )}
+                          </div>
+
+                          {isInsufficientPaper && (
+                            <div className="bg-red-950/80 border border-red-500/40 text-red-300 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+                              <span>
+                                Insufficient paper in machine! Required: <strong>{requiredSheets} sheets</strong>, Available: <strong>{availableSheets} sheets</strong>.
+                              </span>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handlePaymentAndPrintSubmit}
+                            disabled={submittingJob || calculatingPrice || !priceSummary || isInsufficientPaper}
+                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-3.5 sm:py-4 px-3 sm:px-6 rounded-xl shadow-md active:scale-98 transition flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base tracking-wide disabled:opacity-50 min-w-0"
+                          >
+                            {submittingJob ? (
+                              <>
+                                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                                <span className="truncate">{paymentStepText || 'Processing...'}</span>
+                              </>
+                            ) : isInsufficientPaper ? (
+                              <span>INSUFFICIENT PAPER ({availableSheets}/{requiredSheets} SHEETS)</span>
+                            ) : (
+                              <>
+                                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                                <span className="truncate">PAY ₹{priceSummary ? priceSummary.totalPrice.toFixed(2) : '0.00'} & PRINT</span>
+                                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                              </>
+                            )}
+                          </button>
+
+                          <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 min-w-0">
+                            <Lock className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                            <span className="truncate">Secured by Cashfree Payments</span>
                           </div>
                         </div>
-                        {calculatingPrice && (
-                          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handlePaymentAndPrintSubmit}
-                        disabled={submittingJob || calculatingPrice || !priceSummary}
-                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-3.5 sm:py-4 px-3 sm:px-6 rounded-xl shadow-md active:scale-98 transition flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base tracking-wide disabled:opacity-50 min-w-0"
-                      >
-                        {submittingJob ? (
-                          <>
-                            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-                            <span className="truncate">{paymentStepText || 'Processing...'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                            <span className="truncate">PAY ₹{priceSummary ? priceSummary.totalPrice.toFixed(2) : '0.00'} & PRINT</span>
-                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                          </>
-                        )}
-                      </button>
-
-                      <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 min-w-0">
-                        <Lock className="w-3 h-3 text-emerald-400 flex-shrink-0" />
-                        <span className="truncate">Secured by Cashfree Payments</span>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 )}
               </>

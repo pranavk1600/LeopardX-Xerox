@@ -25,7 +25,7 @@ export const createPaymentOrder = async (req: Request, res: Response, next: Next
       return;
     }
 
-    // Authoritative Server-side Price Verification
+    // Authoritative Server-side Price & Paper Stock Verification
     const calculatedPricing = pricingService.calculatePrice({
       totalPages: printJob.totalPages,
       selectedPages: printJob.selectedPages,
@@ -33,6 +33,24 @@ export const createPaymentOrder = async (req: Request, res: Response, next: Next
       colorMode: printJob.colorMode,
       paperSize: printJob.paperSize,
     });
+
+    const requiredSheets = pricingService.calculatePhysicalSheets({
+      totalPages: printJob.totalPages,
+      selectedPages: printJob.selectedPages,
+      copies: printJob.copies,
+      printType: printJob.printType,
+    });
+
+    if (printJob.machine.paperStock < requiredSheets) {
+      res.status(400).json({
+        success: false,
+        message: 'Insufficient paper available. Please try again later.',
+        insufficientPaper: true,
+        availableStock: printJob.machine.paperStock,
+        requiredSheets,
+      });
+      return;
+    }
 
     const finalAmount = calculatedPricing.totalPrice;
 
