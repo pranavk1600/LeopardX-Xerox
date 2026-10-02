@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LeopardX Xerox Admin</string>
+    <string name="title_activity_main">LeopardX Xerox Admin</string>
+    <string name="package_name">com.leopardxtechnology.xeroxadmin</string>
+    <string name="custom_url_scheme">com.leopardxtechnology.xeroxadmin</string>
+</resources>

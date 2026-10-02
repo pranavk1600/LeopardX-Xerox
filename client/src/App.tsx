@@ -11,11 +11,25 @@ import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
 import { AdminMachinesPage } from './pages/admin/AdminMachinesPage';
 import { AdminMachineDetailsPage } from './pages/admin/AdminMachineDetailsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorBackButton } from './components/CapacitorBackButton';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
+      <CapacitorBackButton />
       <Routes>
+        {/* Root Route */}
+        <Route
+          path="/"
+          element={
+            <Navigate
+              to={Capacitor.isNativePlatform() ? '/admin/login' : '/print?machine=PUNE-COLLEGE-001'}
+              replace
+            />
+          }
+        />
+
         {/* Customer Kiosk & Info Routes */}
         <Route path="/print" element={<KioskPage />} />
         <Route path="/services" element={<ServicesPricingPage />} />
@@ -39,8 +53,16 @@ export const App: React.FC = () => {
           <Route path="/admin/reports" element={<Navigate to="/admin/machines" replace />} />
         </Route>
 
-        {/* Default route redirects to sample machine QR path */}
-        <Route path="*" element={<Navigate to="/print?machine=PUNE-COLLEGE-001" replace />} />
+        {/* Default route fallback */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={Capacitor.isNativePlatform() ? '/admin/login' : '/print?machine=PUNE-COLLEGE-001'}
+              replace
+            />
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

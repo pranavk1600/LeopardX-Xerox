@@ -9,7 +9,7 @@ const getBaseUrl = (): string => {
     const trimmed = rawUrl.replace(/\/+$/, '');
     return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
   }
-  return 'http://localhost:5000/api';
+  return 'https://leopardx-xerox.onrender.com/api';
 };
 
 const adminAxios = axios.create({
