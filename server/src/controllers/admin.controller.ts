@@ -105,7 +105,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     if (!emailSent) {
       res.status(500).json({
         success: false,
-        message: 'Failed to send password reset email. Please verify SMTP configuration or try again later.',
+        message: 'Failed to send password reset email. Please try again later.',
       });
       return;
     }

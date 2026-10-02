@@ -1,38 +1,15 @@
-import nodemailer from 'nodemailer';
+import axios from 'axios';
 
 export class EmailService {
-  private getTransporter() {
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '465', 10);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (user && pass) {
-      return nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        family: 4, // Force IPv4 to avoid ENETUNREACH IPv6 routing errors on Render/cloud environments
-        connectionTimeout: 10000, // 10s connection timeout
-        greetingTimeout: 10000,   // 10s greeting timeout
-        socketTimeout: 15000,     // 15s socket timeout
-        dnsTimeout: 10000,        // 10s DNS resolution timeout
-        auth: {
-          user,
-          pass,
-        },
-      } as any);
-    }
-
-    return null;
-  }
-
   public async sendPasswordResetEmail(toEmail: string, rawToken: string): Promise<boolean> {
-    const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const rawClientUrl =
+      process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const baseUrl = rawClientUrl.replace(/\/+$/, '');
     const resetUrl = `${baseUrl}/admin/reset-password?token=${rawToken}`;
 
-    const fromAddress = process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@leopardx-xerox.com';
+    const fromAddress =
+      process.env.MAIL_FROM ||
+      'LeopardX Xerox Super Admin <onboarding@resend.dev>';
     const subject = 'LeopardX Xerox - Reset Your Super Admin Password';
 
     const htmlBody = `
@@ -97,29 +74,161 @@ LeopardX Xerox
 LeopardX Technologies
     `;
 
-    try {
-      const transporter = this.getTransporter();
-
-      if (transporter) {
-        await transporter.sendMail({
-          from: `"LeopardX Xerox Super Admin" <${fromAddress}>`,
-          to: toEmail,
-          subject,
-          text: textBody,
-          html: htmlBody,
-        });
-        console.log(`[Email Service] Password reset email sent via Nodemailer to ${toEmail}`);
-        return true;
-      } else {
-        console.warn(
-          '[Email Service] SMTP credentials not configured (SMTP_USER / SMTP_PASS missing).'
+    // 1. Resend HTTPS API (POST https://api.resend.com/emails)
+    const resendApiKey = process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
+    if (resendApiKey) {
+      try {
+        const res = await axios.post(
+          'https://api.resend.com/emails',
+          {
+            from: fromAddress,
+            to: [toEmail],
+            subject,
+            html: htmlBody,
+            text: textBody,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${resendApiKey.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000,
+          }
         );
-        return false;
+
+        if (res.status >= 200 && res.status < 300) {
+          console.log(
+            `[Email Service] Password reset email dispatched successfully via Resend HTTPS API to ${toEmail}`
+          );
+          return true;
+        }
+      } catch (err: any) {
+        console.error(
+          '[Email Service Error - Resend HTTPS API]',
+          err?.response?.data || err?.message || err
+        );
       }
-    } catch (error) {
-      console.error('[Email Service Error]', error);
-      return false;
     }
+
+    // 2. Brevo / Sendinblue HTTPS API (POST https://api.brevo.com/v3/smtp/email)
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (brevoApiKey) {
+      try {
+        const res = await axios.post(
+          'https://api.brevo.com/v3/smtp/email',
+          {
+            sender: {
+              name: 'LeopardX Xerox Super Admin',
+              email: process.env.MAIL_FROM || 'kondhalkarp1600@gmail.com',
+            },
+            to: [{ email: toEmail }],
+            subject,
+            htmlContent: htmlBody,
+            textContent: textBody,
+          },
+          {
+            headers: {
+              'api-key': brevoApiKey.trim(),
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000,
+          }
+        );
+
+        if (res.status >= 200 && res.status < 300) {
+          console.log(
+            `[Email Service] Password reset email dispatched successfully via Brevo HTTPS API to ${toEmail}`
+          );
+          return true;
+        }
+      } catch (err: any) {
+        console.error(
+          '[Email Service Error - Brevo HTTPS API]',
+          err?.response?.data || err?.message || err
+        );
+      }
+    }
+
+    // 3. SendGrid HTTPS API (POST https://api.sendgrid.com/v3/mail/send)
+    const sendgridApiKey = process.env.SENDGRID_API_KEY;
+    if (sendgridApiKey) {
+      try {
+        const res = await axios.post(
+          'https://api.sendgrid.com/v3/mail/send',
+          {
+            personalizations: [{ to: [{ email: toEmail }] }],
+            from: { email: process.env.MAIL_FROM || 'kondhalkarp1600@gmail.com', name: 'LeopardX Xerox Super Admin' },
+            subject,
+            content: [
+              { type: 'text/plain', value: textBody },
+              { type: 'text/html', value: htmlBody },
+            ],
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${sendgridApiKey.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000,
+          }
+        );
+
+        if (res.status >= 200 && res.status < 300) {
+          console.log(
+            `[Email Service] Password reset email dispatched successfully via SendGrid HTTPS API to ${toEmail}`
+          );
+          return true;
+        }
+      } catch (err: any) {
+        console.error(
+          '[Email Service Error - SendGrid HTTPS API]',
+          err?.response?.data || err?.message || err
+        );
+      }
+    }
+
+    // 4. Custom HTTPS Email Webhook / REST API
+    const customEndpoint = process.env.EMAIL_API_ENDPOINT;
+    if (customEndpoint) {
+      try {
+        const res = await axios.post(
+          customEndpoint,
+          {
+            to: toEmail,
+            from: fromAddress,
+            subject,
+            html: htmlBody,
+            text: textBody,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(process.env.EMAIL_API_KEY && {
+                Authorization: `Bearer ${process.env.EMAIL_API_KEY.trim()}`,
+              }),
+            },
+            timeout: 10000,
+          }
+        );
+
+        if (res.status >= 200 && res.status < 300) {
+          console.log(
+            `[Email Service] Password reset email dispatched successfully via Custom HTTPS Endpoint to ${toEmail}`
+          );
+          return true;
+        }
+      } catch (err: any) {
+        console.error(
+          '[Email Service Error - Custom HTTPS Endpoint]',
+          err?.response?.data || err?.message || err
+        );
+      }
+    }
+
+    console.warn(
+      '[Email Service Warning] No transactional HTTPS Email API key configured. Please set RESEND_API_KEY, BREVO_API_KEY, or SENDGRID_API_KEY in server environment variables.'
+    );
+    return false;
   }
 }
 
