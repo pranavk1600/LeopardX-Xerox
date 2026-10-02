@@ -69,7 +69,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 
     const genericSuccessResponse = {
       success: true,
-      message: 'If an account exists with this email address, a password reset link has been sent. Please check your inbox.',
+      message: 'Password reset link has been sent to your email. Please check your inbox.',
     };
 
     const admin = await prisma.superAdmin.findUnique({
@@ -77,7 +77,10 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     });
 
     if (!admin || !admin.isActive) {
-      res.json(genericSuccessResponse);
+      res.status(404).json({
+        success: false,
+        message: 'This email is not registered as a Super Admin.',
+      });
       return;
     }
 

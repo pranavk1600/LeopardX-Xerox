@@ -25,13 +25,13 @@ export const AdminForgotPasswordPage: React.FC = () => {
       setSubmitted(true);
       setMessage(
         res.message ||
-          'If an account exists with this email address, a password reset link has been sent. Please check your inbox.'
+          'Password reset link has been sent to your email. Please check your inbox.'
       );
     } catch (err: any) {
       console.error('[Forgot Password Error]', err);
       setError(
         err.response?.data?.message ||
-          'Failed to send password reset request. Please try again later.'
+          'This email is not registered as a Super Admin.'
       );
     } finally {
       setLoading(false);
