@@ -26,10 +26,17 @@ export const AdminLoginPage: React.FC = () => {
       navigate('/admin/machines');
     } catch (err: any) {
       console.error('[Admin Login Error]', err);
-      setError(
-        err.response?.data?.message ||
-          'Invalid Super Admin credentials. Please check your email and password.'
-      );
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError('Invalid Super Admin credentials. Please check your email and password.');
+        } else if (err.response.status >= 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          setError(err.response.data?.message || 'Login failed. Please check your credentials.');
+        }
+      } else {
+        setError('Unable to connect to server. Please check your internet connection.');
+      }
     } finally {
       setLoading(false);
     }

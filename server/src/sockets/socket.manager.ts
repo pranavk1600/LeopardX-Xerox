@@ -10,9 +10,25 @@ export class SocketManager {
   private agentSockets: Map<string, string> = new Map(); // machineCode -> socketId
 
   constructor(server: HttpServer, clientUrl: string) {
+    const allowedOrigins = [
+      clientUrl,
+      'https://leopard-x-xerox.vercel.app',
+      'https://localhost',
+      'capacitor://localhost',
+      'http://localhost',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ];
+
     this.io = new Server(server, {
       cors: {
-        origin: [clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+        origin: (origin, callback) => {
+          if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            callback(null, false);
+          }
+        },
         methods: ['GET', 'POST'],
       },
     });
