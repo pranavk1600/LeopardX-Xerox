@@ -75,6 +75,16 @@ export const adminLogin = async (email: string, password: string) => {
   return res.data;
 };
 
+export const requestForgotPassword = async (email: string) => {
+  const res = await adminAxios.post('/admin/forgot-password', { email });
+  return res.data;
+};
+
+export const resetAdminPassword = async (token: string, newPassword: string) => {
+  const res = await adminAxios.post('/admin/reset-password', { token, newPassword });
+  return res.data;
+};
+
 export const getAdminMachines = async (): Promise<AdminMachinesResponse> => {
   const res = await adminAxios.get('/admin/machines');
   return {

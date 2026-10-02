@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   adminLogin,
+  forgotPassword,
+  resetPassword,
   getAllMachines,
   getMachineById,
   createMachine,
@@ -15,8 +17,10 @@ import { adminAuth } from '../middleware/adminAuth.middleware';
 
 const router = Router();
 
-// Public Admin Login
+// Public Admin Auth Routes
 router.post('/login', adminLogin);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Protected Super Admin Machine Management Routes
 router.get('/machines', adminAuth, getAllMachines);

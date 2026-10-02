@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
+import { emailService } from '../services/email.service';
 
 const getJwtSecret = (): string => {
   return process.env.JWT_SECRET || 'leopardx_super_admin_jwt_secret_key_2026_secure';
@@ -50,6 +51,115 @@ export const adminLogin = async (req: Request, res: Response, next: NextFunction
           email: admin.email,
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    const providedEmail = (email || '').trim().toLowerCase();
+
+    if (!providedEmail) {
+      res.status(400).json({ success: false, message: 'Email address is required' });
+      return;
+    }
+
+    const genericSuccessResponse = {
+      success: true,
+      message: 'If an account exists with this email address, a password reset link has been sent. Please check your inbox.',
+    };
+
+    const admin = await prisma.superAdmin.findUnique({
+      where: { email: providedEmail },
+    });
+
+    if (!admin || !admin.isActive) {
+      res.json(genericSuccessResponse);
+      return;
+    }
+
+    // Generate 32-byte hex raw token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    // Hash raw token using SHA-256 for DB storage
+    const resetTokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    // 15-minute token expiration
+    const resetTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.superAdmin.update({
+      where: { id: admin.id },
+      data: {
+        resetTokenHash,
+        resetTokenExpiresAt,
+      },
+    });
+
+    // Send reset email via email service
+    await emailService.sendPasswordResetEmail(admin.email, rawToken);
+
+    res.json(genericSuccessResponse);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, newPassword, password } = req.body;
+    const rawToken = (token || '').trim();
+    const targetPassword = newPassword || password;
+
+    if (!rawToken || !targetPassword) {
+      res.status(400).json({
+        success: false,
+        message: 'Reset token and new password are required',
+      });
+      return;
+    }
+
+    if (targetPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+      });
+      return;
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    const admin = await prisma.superAdmin.findFirst({
+      where: {
+        resetTokenHash: hashedToken,
+        resetTokenExpiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!admin || !admin.isActive) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid or expired password reset link. Please request a new password reset.',
+      });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(targetPassword, 10);
+
+    await prisma.superAdmin.update({
+      where: { id: admin.id },
+      data: {
+        passwordHash,
+        resetTokenHash: null,
+        resetTokenExpiresAt: null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password reset successful. You can now log in with your new password.',
     });
   } catch (error) {
     next(error);

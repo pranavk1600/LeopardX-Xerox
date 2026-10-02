@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Mail, ChevronRight, AlertCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Shield, Lock, Mail, ChevronRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { adminLogin } from '../../services/adminApi';
 
 export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -66,18 +67,40 @@ export const AdminLoginPage: React.FC = () => {
           </div>
 
           <div className="min-w-0 w-full">
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-              <span>Password</span>
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 box-border min-w-0"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <span>Password</span>
+              </label>
+              <Link
+                to="/admin/forgot-password"
+                className="text-[11px] font-medium text-amber-400 hover:text-amber-300 hover:underline transition"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3.5 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 box-border min-w-0"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (

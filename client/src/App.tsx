@@ -6,6 +6,8 @@ import { ContactPage } from './pages/ContactPage';
 import { TermsPage } from './pages/TermsPage';
 import { RefundsPage } from './pages/RefundsPage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
+import { AdminForgotPasswordPage } from './pages/admin/AdminForgotPasswordPage';
+import { AdminResetPasswordPage } from './pages/admin/AdminResetPasswordPage';
 import { AdminMachinesPage } from './pages/admin/AdminMachinesPage';
 import { AdminMachineDetailsPage } from './pages/admin/AdminMachineDetailsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -21,8 +23,10 @@ export const App: React.FC = () => {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/refunds" element={<RefundsPage />} />
 
-        {/* Public Admin Login Route */}
+        {/* Public Admin Auth Routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin/forgot-password" element={<AdminForgotPasswordPage />} />
+        <Route path="/admin/reset-password" element={<AdminResetPasswordPage />} />
 
         {/* Protected Super Admin Routes */}
         <Route element={<ProtectedRoute />}>
