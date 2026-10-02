@@ -100,7 +100,15 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     });
 
     // Send reset email via email service
-    await emailService.sendPasswordResetEmail(admin.email, rawToken);
+    const emailSent = await emailService.sendPasswordResetEmail(admin.email, rawToken);
+
+    if (!emailSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset email. Please verify SMTP configuration or try again later.',
+      });
+      return;
+    }
 
     res.json(genericSuccessResponse);
   } catch (error) {

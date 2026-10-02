@@ -12,11 +12,16 @@ export class EmailService {
         host,
         port,
         secure: port === 465,
+        family: 4, // Force IPv4 to avoid ENETUNREACH IPv6 routing errors on Render/cloud environments
+        connectionTimeout: 10000, // 10s connection timeout
+        greetingTimeout: 10000,   // 10s greeting timeout
+        socketTimeout: 15000,     // 15s socket timeout
+        dnsTimeout: 10000,        // 10s DNS resolution timeout
         auth: {
           user,
           pass,
         },
-      });
+      } as any);
     }
 
     return null;
@@ -104,16 +109,15 @@ LeopardX Technologies
           html: htmlBody,
         });
         console.log(`[Email Service] Password reset email sent via Nodemailer to ${toEmail}`);
+        return true;
       } else {
         console.warn(
-          `[Email Service] SMTP credentials not configured. Password reset link generated for dev: ${resetUrl}`
+          '[Email Service] SMTP credentials not configured (SMTP_USER / SMTP_PASS missing).'
         );
+        return false;
       }
-      return true;
     } catch (error) {
       console.error('[Email Service Error]', error);
-      // Fallback log link for safety in case SMTP fails
-      console.log(`[Email Service Fallback URL] ${resetUrl}`);
       return false;
     }
   }
