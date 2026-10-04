@@ -1,15 +1,15 @@
 import { IPrinterService, PrintOptions, PrinterStatus } from './printer.interface';
-import pdfToPrinter from 'pdf-to-printer';
+import { print, getPrinters } from 'pdf-to-printer';
 import fs from 'fs';
 
 export class WindowsPrinterService implements IPrinterService {
   async getPrinters(): Promise<string[]> {
     try {
-      const list = await pdfToPrinter.getPrinters();
+      const list = await getPrinters();
       return list.map((p) => p.name);
     } catch (error) {
       console.warn('[WindowsPrinterService] Unable to list printers via pdf-to-printer:', error);
-      return ['Default System Printer'];
+      return [];
     }
   }
 
@@ -30,40 +30,32 @@ export class WindowsPrinterService implements IPrinterService {
       throw new Error(`File not found at path: ${filePath}`);
     }
 
-    try {
-      const printConfig: any = {
-        copies: options.copies || 1,
-      };
+    const printConfig: any = {
+      copies: options.copies || 1,
+    };
 
-      if (options.printerName) {
-        printConfig.printer = options.printerName;
-      }
-
-      if (options.selectedPages && options.selectedPages.toLowerCase() !== 'all') {
-        printConfig.pages = options.selectedPages;
-      }
-
-      if (options.paperSize) {
-        printConfig.paperSize = options.paperSize.toLowerCase();
-      }
-
-      if (options.printType === 'BACK_TO_BACK') {
-        printConfig.side = 'duplex';
-      } else {
-        printConfig.side = 'simplex';
-      }
-
-      console.log(`[WindowsPrinterService] Sending job to print spooler...`);
-      await pdfToPrinter.print(filePath, printConfig);
-      console.log(`[WindowsPrinterService] Print job sent to printer successfully.`);
-      return true;
-    } catch (error: any) {
-      console.error('[WindowsPrinterService Error]', error?.message || error);
-      
-      // Fallback for development/virtual environment: if no physical printer is attached, log simulation output
-      console.log('[WindowsPrinterService Fallback] Simulated printing completed successfully for development mode.');
-      return true;
+    if (options.printerName && options.printerName.trim() !== '') {
+      printConfig.printer = options.printerName.trim();
     }
+
+    if (options.selectedPages && options.selectedPages.toLowerCase() !== 'all') {
+      printConfig.pages = options.selectedPages;
+    }
+
+    if (options.paperSize) {
+      printConfig.paperSize = options.paperSize.toLowerCase();
+    }
+
+    if (options.printType === 'BACK_TO_BACK') {
+      printConfig.side = 'duplex';
+    } else {
+      printConfig.side = 'simplex';
+    }
+
+    console.log(`[WindowsPrinterService] Sending job to Windows print spooler... Config:`, printConfig);
+    await print(filePath, printConfig);
+    console.log(`[WindowsPrinterService ✅] Print job sent to printer successfully.`);
+    return true;
   }
 
   async cancelPrint(jobId?: string): Promise<boolean> {
@@ -73,3 +65,4 @@ export class WindowsPrinterService implements IPrinterService {
 }
 
 export const printerService = new WindowsPrinterService();
+
