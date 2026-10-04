@@ -36,7 +36,7 @@ export const ServicesPricingPage: React.FC = () => {
               <p className="text-slate-400 text-xs mt-1">High-contrast Monochrome laser document printout for notes, assignments, reports & forms.</p>
             </div>
             <div className="flex items-baseline gap-1 pt-2">
-              <span className="text-4xl font-black text-amber-400">₹2.00</span>
+              <span className="text-4xl font-black text-amber-400">₹1.00</span>
               <span className="text-xs text-slate-400 font-medium">/ page (A4)</span>
             </div>
             <ul className="space-y-2 text-xs text-slate-300 pt-2 border-t border-slate-800">
@@ -83,13 +83,13 @@ export const ServicesPricingPage: React.FC = () => {
                 <tr>
                   <td className="py-3 px-4 font-semibold text-white">Single Side (Monochrome B&W)</td>
                   <td className="py-3 px-4">A4 (210 × 297 mm)</td>
-                  <td className="py-3 px-4 text-amber-400 font-bold">₹2.00</td>
+                  <td className="py-3 px-4 text-amber-400 font-bold">₹1.00</td>
                   <td className="py-3 px-4 text-emerald-400 font-medium">Included free</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-4 font-semibold text-white">Back to Back (Duplex B&W)</td>
                   <td className="py-3 px-4">A4 (210 × 297 mm)</td>
-                  <td className="py-3 px-4 text-amber-400 font-bold">₹4.00</td>
+                  <td className="py-3 px-4 text-amber-400 font-bold">₹2.00</td>
                   <td className="py-3 px-4 text-emerald-400 font-medium">Included free</td>
                 </tr>
               </tbody>

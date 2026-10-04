@@ -48,6 +48,7 @@ export const subscribeToJobUpdates = (
     }
   };
 
+  s.off('job:updated');
   s.on('job:updated', handler);
 
   return () => {

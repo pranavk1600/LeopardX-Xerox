@@ -104,24 +104,63 @@ export const KioskPage: React.FC = () => {
     loadMachineInfo();
   }, [machineCode]);
 
-  // 2. Real-Time Socket.IO Status Updates
+  // 2. Real-Time Socket.IO Status Updates + Polling Fallback
   useEffect(() => {
     if (!activeJobId) return;
 
-    console.log(`[Frontend Socket] Subscribing to job updates for: ${activeJobId}`);
-    const unsubscribe = subscribeToJobUpdates(activeJobId, (data) => {
-      console.log('[Frontend Socket Received Job Update]', data);
+    let isMounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
 
+    const fetchCurrentStatus = async () => {
+      try {
+        const job = await getPrintJobStatus(activeJobId);
+        if (!isMounted) return;
+
+        if (job && job.status) {
+          setJobStatus(job.status as PrintJobStatus);
+          if (job.status === 'COMPLETED' || job.status === 'FAILED') {
+            if (pollTimer) {
+              clearInterval(pollTimer);
+              pollTimer = null;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Status Poll Warning]', err);
+      }
+    };
+
+    // 1. Immediate fetch on mount / activeJobId initialization
+    fetchCurrentStatus();
+
+    // 2. Real-time Socket.IO subscription
+    console.log(`[Frontend Socket] Subscribing to job updates for: ${activeJobId}`);
+    const unsubscribeSocket = subscribeToJobUpdates(activeJobId, (data) => {
+      if (!isMounted) return;
       if (data.status) {
         setJobStatus(data.status as PrintJobStatus);
-      }
-      if (data.errorMessage) {
-        setStatusMessage(data.errorMessage);
+        if (data.errorMessage) {
+          setStatusMessage(data.errorMessage);
+        }
+        if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        }
       }
     });
 
+    // 3. Fallback Polling every 1.2 seconds
+    pollTimer = setInterval(fetchCurrentStatus, 1200);
+
     return () => {
-      unsubscribe();
+      isMounted = false;
+      unsubscribeSocket();
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
     };
   }, [activeJobId]);
 

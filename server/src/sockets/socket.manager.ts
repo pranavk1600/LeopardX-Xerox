@@ -196,6 +196,7 @@ export class SocketManager {
     }
 
     console.log(`[Socket] Emitting print job to machine:${machineCode}`);
+    console.log(`[Print Dispatch] Job ${jobData.id} dispatched to machine ${machineCode}`);
     this.io.to(`machine:${machineCode}`).emit('print-job:dispatch', jobData);
     console.log(`[Socket Dispatch Success] Dispatched job ${jobData.id} to machine ${machineCode}`);
     return true;

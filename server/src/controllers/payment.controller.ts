@@ -137,6 +137,17 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
+    // Check idempotency: If payment is already SUCCESS and job is already QUEUED, PRINTING, or COMPLETED, skip double dispatch
+    if (payment.status === 'SUCCESS' && ['QUEUED', 'PRINTING', 'COMPLETED'].includes(payment.printJob.status)) {
+      console.log(`[Payment] Order ${payment.orderId} already verified and job ${payment.printJobId} status is ${payment.printJob.status}. Skipping duplicate dispatch.`);
+      res.json({
+        success: true,
+        message: 'Payment already verified and print job active',
+        data: { jobId: payment.printJob.id, status: payment.printJob.status },
+      });
+      return;
+    }
+
     // SERVER-SIDE VERIFIED SUCCESS
     console.log(`[Payment] Payment verified successfully`);
     console.log(`[Print Job] Job ID: ${payment.printJobId}`);
