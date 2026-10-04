@@ -8,6 +8,7 @@ import { pricingService } from '../services/pricing.service';
 export class SocketManager {
   private io: Server;
   private agentSockets: Map<string, string> = new Map(); // machineCode -> socketId
+  private dispatchedJobs: Set<string> = new Set();
 
   constructor(server: HttpServer, clientUrl: string) {
     const allowedOrigins = [
@@ -179,6 +180,12 @@ export class SocketManager {
   // Method to dispatch job to connected Print Agent
   public dispatchJobToAgent(machineCode: string, jobData: any): boolean {
     const normalizedCode = (machineCode || '').trim();
+    const jobId = jobData.id || jobData.jobId;
+
+    if (jobId && this.dispatchedJobs.has(jobId)) {
+      console.warn(`[Print Dispatch] DUPLICATE DISPATCH BLOCKED: ${jobId}`);
+      return true;
+    }
 
     let socketId = this.agentSockets.get(normalizedCode);
     if (!socketId) {
@@ -193,6 +200,14 @@ export class SocketManager {
     if (!socketId) {
       console.warn(`[Socket Dispatch Warning] No active agent socket for machine: ${machineCode}`);
       return false;
+    }
+
+    if (jobId) {
+      this.dispatchedJobs.add(jobId);
+      if (this.dispatchedJobs.size > 1000) {
+        const firstItem = this.dispatchedJobs.values().next().value;
+        if (firstItem) this.dispatchedJobs.delete(firstItem);
+      }
     }
 
     console.log(`[Socket] Emitting print job to machine:${machineCode}`);

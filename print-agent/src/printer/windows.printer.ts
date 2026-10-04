@@ -31,7 +31,7 @@ export class WindowsPrinterService implements IPrinterService {
     }
 
     const printConfig: any = {
-      copies: options.copies || 1,
+      copies: Math.max(1, options.copies || 1),
     };
 
     if (options.printerName && options.printerName.trim() !== '') {
@@ -43,7 +43,7 @@ export class WindowsPrinterService implements IPrinterService {
     }
 
     if (options.paperSize) {
-      printConfig.paperSize = options.paperSize.toLowerCase();
+      printConfig.paperSize = options.paperSize.toUpperCase();
     }
 
     if (options.printType === 'BACK_TO_BACK') {
@@ -52,9 +52,31 @@ export class WindowsPrinterService implements IPrinterService {
       printConfig.side = 'simplex';
     }
 
+    const isDryRun = options.dryRun || process.env.PRINT_DRY_RUN === 'true';
+
+    if (isDryRun) {
+      console.log(`[DRY RUN] Would print job ${options.jobId || 'unknown'}`);
+      console.log(`[DRY RUN] copies=${printConfig.copies}`);
+      console.log(`[DRY RUN] printer=${printConfig.printer || 'default'}`);
+      console.log(`[DRY RUN] paperSize=${printConfig.paperSize}`);
+      console.log(`[DRY RUN] side=${printConfig.side}`);
+      console.log(`[DRY RUN] (No physical print sent to printer hardware)`);
+      return true;
+    }
+
+    console.log(`[PHYSICAL PRINT INVOCATION]`);
+    console.log(`jobId=${options.jobId || 'unknown'}`);
+    console.log(`copies=${printConfig.copies}`);
+    console.log(`printer=${printConfig.printer || 'default'}`);
+    console.log(`timestamp=${new Date().toISOString()}`);
+
     console.log(`[WindowsPrinterService] Sending job to Windows print spooler... Config:`, printConfig);
     await print(filePath, printConfig);
-    console.log(`[WindowsPrinterService ✅] Print job sent to printer successfully.`);
+
+    console.log(`[PHYSICAL PRINT RETURNED]`);
+    console.log(`jobId=${options.jobId || 'unknown'}`);
+    console.log(`timestamp=${new Date().toISOString()}`);
+    console.log(`[WindowsPrinterService] Print job sent to printer successfully.`);
     return true;
   }
 

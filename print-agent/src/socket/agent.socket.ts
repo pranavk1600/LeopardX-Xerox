@@ -51,6 +51,7 @@ export class AgentSocketManager {
     this.socket.on('print-job:dispatch', async (jobData: any) => {
       await this.handlePrintJob(jobData);
     });
+    console.log('[Socket] Print listener registered');
 
     this.socket.on('disconnect', (reason) => {
       console.warn(`[Print Agent ⚠️] Disconnected from server. Reason: ${reason}`);
@@ -101,7 +102,8 @@ export class AgentSocketManager {
 
     // Strong Idempotency Check: Ignore duplicate job requests
     if (this.activeJobs.has(jobId) || this.processedJobs.has(jobId)) {
-      console.warn(`[Print Agent] Duplicate job ignored: ${jobId}`);
+      console.warn(`[Print Agent] DUPLICATE JOB RECEIVED: ${jobId}`);
+      console.warn(`[Print Agent] DUPLICATE PRINT BLOCKED: ${jobId}`);
       return;
     }
 
@@ -136,6 +138,7 @@ export class AgentSocketManager {
       // 3. Trigger printer service
       console.log(`[Print Agent] Sending file ${fileName} to local printer...`);
       const success = await printerService.printDocument(localFilePath, {
+        jobId,
         copies: targetCopies,
         selectedPages: selectedPages || 'all',
         colorMode: colorMode || 'BW',
