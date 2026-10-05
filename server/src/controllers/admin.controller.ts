@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
 import { emailService } from '../services/email.service';
+import { socketManagerInstance } from '../sockets/socket.manager';
 
 const getJwtSecret = (): string => {
   return process.env.JWT_SECRET || 'leopardx_super_admin_jwt_secret_key_2026_secure';
@@ -211,12 +212,16 @@ export const getAllMachines = async (req: Request, res: Response, next: NextFunc
         ? 'LOW_PAPER'
         : 'NORMAL';
 
+      const liveStatus = socketManagerInstance
+        ? (socketManagerInstance.isAgentConnected(m.machineCode) ? 'ONLINE' : 'OFFLINE')
+        : m.status;
+
       return {
         id: m.id,
         machineCode: m.machineCode,
         name: m.name,
         location: m.location,
-        status: m.status,
+        status: liveStatus,
         operationalState: (m as any).operationalState || 'ACTIVE',
         token: m.token,
         paperStock: m.paperStock,

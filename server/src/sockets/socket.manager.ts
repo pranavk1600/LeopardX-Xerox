@@ -45,7 +45,15 @@ export class SocketManager {
       socket.on('agent:authenticate', async (data: { machineCode: string; token: string }) => {
         try {
           const { machineCode, token } = data;
-          const machine = await prisma.machine.findUnique({ where: { machineCode } });
+          const normalizedCode = (machineCode || '').trim().toUpperCase();
+          const machine = await prisma.machine.findFirst({
+            where: {
+              machineCode: {
+                equals: normalizedCode,
+                mode: 'insensitive',
+              },
+            },
+          });
 
           if (!machine || machine.token !== token) {
             console.warn(`[Socket Agent Auth Failed] Invalid machine credentials for code: ${machineCode}`);
@@ -53,22 +61,47 @@ export class SocketManager {
             return;
           }
 
-          // Mark machine ONLINE and save mapping
+          // Mark machine ONLINE in DB and save authoritative socket mapping
           await prisma.machine.update({
             where: { id: machine.id },
             data: { status: 'ONLINE' },
           });
 
-          this.agentSockets.set(machineCode, socket.id);
-          socket.join(`machine:${machineCode}`);
-          socket.data.machineCode = machineCode;
+          this.agentSockets.set(normalizedCode, socket.id);
+          socket.join(`machine:${normalizedCode}`);
+          socket.data.machineCode = normalizedCode;
           socket.data.isAgent = true;
 
-          console.log(`[Socket Agent Auth Success] Machine ${machineCode} is now connected & ONLINE.`);
-          socket.emit('agent:authenticated', { success: true, machineCode });
+          console.log(`[Socket Agent Auth Success] Machine ${normalizedCode} is now connected & ONLINE (Socket ID: ${socket.id}).`);
+          socket.emit('agent:authenticated', { success: true, machineCode: normalizedCode });
           
           // Broadcast machine status update
-          this.io.emit('machine:status-change', { machineCode, status: 'ONLINE' });
+          this.io.emit('machine:status-change', { machineCode: normalizedCode, status: 'ONLINE' });
+
+          // Query and auto-dispatch any pending QUEUED jobs for this machine upon connect/reconnect
+          const pendingJobs = await prisma.printJob.findMany({
+            where: {
+              machineId: machine.id,
+              status: 'QUEUED',
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          if (pendingJobs.length > 0) {
+            console.log(`[Socket Agent Reconnect] Found ${pendingJobs.length} QUEUED job(s) for machine ${normalizedCode}. Dispatching...`);
+            for (const job of pendingJobs) {
+              this.dispatchJobToAgent(normalizedCode, {
+                id: job.id,
+                fileName: job.fileName,
+                fileUrl: job.fileUrl,
+                selectedPages: job.selectedPages,
+                copies: job.copies,
+                colorMode: job.colorMode,
+                paperSize: job.paperSize,
+                printType: job.printType,
+              });
+            }
+          }
         } catch (error) {
           console.error('[Socket Agent Auth Error]', error);
           socket.emit('agent:auth-failed', { message: 'Server authentication error' });
@@ -157,29 +190,46 @@ export class SocketManager {
         socket.emit('agent:heartbeat-ack', { timestamp: Date.now() });
       });
 
-      // Disconnect handling
+      // Disconnect handling with stale socket guard
       socket.on('disconnect', async () => {
         const machineCode = socket.data.machineCode;
         if (socket.data.isAgent && machineCode) {
-          console.log(`[Socket Agent Disconnected] Machine ${machineCode} went OFFLINE.`);
-          this.agentSockets.delete(machineCode);
-          try {
-            await prisma.machine.update({
-              where: { machineCode },
-              data: { status: 'OFFLINE' },
-            });
-            this.io.emit('machine:status-change', { machineCode, status: 'OFFLINE' });
-          } catch (e) {
-            console.error('[Socket Disconnect DB Update Error]', e);
+          const normalizedCode = machineCode.trim().toUpperCase();
+          const currentActiveSocketId = this.agentSockets.get(normalizedCode);
+
+          // CRITICAL: Only transition to OFFLINE if this disconnecting socket is the currently active socket
+          if (currentActiveSocketId === socket.id) {
+            console.log(`[Socket Agent Disconnected] Machine ${normalizedCode} went OFFLINE (Socket ID: ${socket.id}).`);
+            this.agentSockets.delete(normalizedCode);
+            try {
+              await prisma.machine.update({
+                where: { machineCode: normalizedCode },
+                data: { status: 'OFFLINE' },
+              });
+              this.io.emit('machine:status-change', { machineCode: normalizedCode, status: 'OFFLINE' });
+            } catch (e) {
+              console.error('[Socket Disconnect DB Update Error]', e);
+            }
+          } else {
+            console.log(`[Socket Disconnect Ignored] Stale socket ${socket.id} disconnected for machine ${normalizedCode}. Active socket remains ${currentActiveSocketId}.`);
           }
         }
       });
     });
   }
 
+  // Helper method to check if an agent is currently connected and active
+  public isAgentConnected(machineCode: string): boolean {
+    const normalizedCode = (machineCode || '').trim().toUpperCase();
+    const socketId = this.agentSockets.get(normalizedCode);
+    if (!socketId) return false;
+    const socket = this.io.sockets.sockets.get(socketId);
+    return Boolean(socket && socket.connected);
+  }
+
   // Method to dispatch job to connected Print Agent
   public dispatchJobToAgent(machineCode: string, jobData: any): boolean {
-    const normalizedCode = (machineCode || '').trim();
+    const normalizedCode = (machineCode || '').trim().toUpperCase();
     const jobId = jobData.id || jobData.jobId;
 
     if (jobId && this.dispatchedJobs.has(jobId)) {
@@ -190,15 +240,16 @@ export class SocketManager {
     let socketId = this.agentSockets.get(normalizedCode);
     if (!socketId) {
       for (const [code, id] of this.agentSockets.entries()) {
-        if (code.toUpperCase() === normalizedCode.toUpperCase()) {
+        if (code.toUpperCase() === normalizedCode) {
           socketId = id;
           break;
         }
       }
     }
 
-    if (!socketId) {
-      console.warn(`[Socket Dispatch Warning] No active agent socket for machine: ${machineCode}`);
+    // Verify active socket exists AND is currently connected
+    if (!socketId || !this.io.sockets.sockets.get(socketId)?.connected) {
+      console.warn(`[Socket Dispatch Warning] No active agent socket for machine: ${machineCode} (Looked up socketId: ${socketId})`);
       return false;
     }
 
@@ -210,10 +261,10 @@ export class SocketManager {
       }
     }
 
-    console.log(`[Socket] Emitting print job to machine:${machineCode}`);
-    console.log(`[Print Dispatch] Job ${jobData.id} dispatched to machine ${machineCode}`);
-    this.io.to(`machine:${machineCode}`).emit('print-job:dispatch', jobData);
-    console.log(`[Socket Dispatch Success] Dispatched job ${jobData.id} to machine ${machineCode}`);
+    console.log(`[Socket] Emitting print job to machine:${normalizedCode}`);
+    console.log(`[Print Dispatch] Job ${jobData.id} dispatched to machine ${normalizedCode}`);
+    this.io.to(`machine:${normalizedCode}`).emit('print-job:dispatch', jobData);
+    console.log(`[Socket Dispatch Success] Dispatched job ${jobData.id} to machine ${normalizedCode}`);
     return true;
   }
 

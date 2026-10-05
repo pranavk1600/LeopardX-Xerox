@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../config/prisma';
+import { socketManagerInstance } from '../sockets/socket.manager';
 
 export const getMachineByCode = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -37,38 +38,56 @@ export const getMachineByCode = async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    const opState = (machine as any).operationalState || 'ACTIVE';
+    // Authoritative Live Socket Connection State
+    const isSocketConnected = socketManagerInstance
+      ? socketManagerInstance.isAgentConnected(machine.machineCode)
+      : machine.status === 'ONLINE';
+    const liveStatus = isSocketConnected ? 'ONLINE' : 'OFFLINE';
+
+    if (machine.status !== liveStatus) {
+      prisma.machine.update({
+        where: { id: machine.id },
+        data: { status: liveStatus },
+      }).catch((err) => console.error('[Machine Status Sync Error]', err));
+    }
+
+    const liveMachine = {
+      ...machine,
+      status: liveStatus,
+    };
+
+    const opState = (liveMachine as any).operationalState || 'ACTIVE';
     if (opState === 'DISABLED') {
       res.status(403).json({
         success: false,
         message: 'Printing is currently unavailable for this machine.',
         disabled: true,
         data: {
-          machineCode: machine.machineCode,
-          name: machine.name,
-          location: machine.location,
-          status: machine.status,
+          machineCode: liveMachine.machineCode,
+          name: liveMachine.name,
+          location: liveMachine.location,
+          status: liveMachine.status,
           operationalState: 'DISABLED',
-          paperStock: machine.paperStock,
-          lowPaperThreshold: machine.lowPaperThreshold,
+          paperStock: liveMachine.paperStock,
+          lowPaperThreshold: liveMachine.lowPaperThreshold,
         },
       });
       return;
     }
 
-    const paperStatus = machine.paperStock === 0
+    const paperStatus = liveMachine.paperStock === 0
       ? 'OUT_OF_PAPER'
-      : machine.paperStock <= machine.lowPaperThreshold
+      : liveMachine.paperStock <= liveMachine.lowPaperThreshold
       ? 'LOW_PAPER'
       : 'NORMAL';
 
-    if (machine.paperStock === 0) {
+    if (liveMachine.paperStock === 0) {
       res.status(400).json({
         success: false,
         message: 'Machine Temporarily Unavailable: Out of paper. Please try again later.',
         outOfPaper: true,
         data: {
-          ...machine,
+          ...liveMachine,
           operationalState: opState,
           paperStatus,
         },
@@ -79,7 +98,7 @@ export const getMachineByCode = async (req: Request, res: Response, next: NextFu
     res.json({
       success: true,
       data: {
-        ...machine,
+        ...liveMachine,
         operationalState: opState,
         paperStatus,
       },

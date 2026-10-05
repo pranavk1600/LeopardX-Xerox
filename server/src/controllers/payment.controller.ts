@@ -190,14 +190,11 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
       });
 
       if (!dispatched) {
-        console.warn(`[Print Job Warning] Print Agent for machine ${targetMachineCode} is offline.`);
-        await prisma.printJob.update({
-          where: { id: updatedJob.id },
-          data: { status: 'FAILED' },
-        });
-        res.status(503).json({
-          success: false,
-          message: 'Printer agent is currently offline. Unable to dispatch print job.',
+        console.warn(`[Print Job Warning] Print Agent for machine ${targetMachineCode} is offline. Job remains QUEUED.`);
+        res.json({
+          success: true,
+          message: 'Payment verified and print job queued. Printing will commence automatically when kiosk agent connects.',
+          data: { jobId: updatedJob.id, status: updatedJob.status },
         });
         return;
       }
@@ -278,9 +275,9 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Idempotency: if already processed, return 200 OK
-    if (payment.status === 'SUCCESS') {
-      res.json({ success: true, message: 'Webhook already processed' });
+    // Idempotency: if already processed and job is in QUEUED, PRINTING, or COMPLETED status, skip double dispatch
+    if (payment.status === 'SUCCESS' && ['QUEUED', 'PRINTING', 'COMPLETED'].includes(payment.printJob.status)) {
+      res.json({ success: true, message: 'Webhook already processed and print job active' });
       return;
     }
 
@@ -299,7 +296,7 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
       });
 
       if (socketManagerInstance) {
-        socketManagerInstance.dispatchJobToAgent(payment.printJob.machine.machineCode, {
+        const dispatched = socketManagerInstance.dispatchJobToAgent(payment.printJob.machine.machineCode, {
           id: updatedJob.id,
           fileName: updatedJob.fileName,
           fileUrl: updatedJob.fileUrl,
@@ -307,7 +304,11 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
           copies: updatedJob.copies,
           colorMode: updatedJob.colorMode,
           paperSize: updatedJob.paperSize,
+          printType: updatedJob.printType,
         });
+        if (!dispatched) {
+          console.warn(`[Webhook Warning] Print Agent for machine ${payment.printJob.machine.machineCode} is offline. Job remains QUEUED.`);
+        }
       }
     } else if (paymentStatus === 'FAILED') {
       await prisma.payment.update({

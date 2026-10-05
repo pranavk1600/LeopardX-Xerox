@@ -241,20 +241,29 @@ export const KioskPage: React.FC = () => {
     setStatusMessage(null);
 
     try {
-      // 1. Create Print Job in DB
-      const createdJob = await createPrintJob(
-        machineCode,
-        pdfInfo.fileName,
-        pdfInfo.totalPages,
-        options
-      );
+      // 1. Create or Reuse Print Job in DB
+      let targetJobId = activeJobId;
+      let initialStatus: PrintJobStatus = 'CREATED';
 
-      setActiveJobId(createdJob.id);
-      updateJobStatus(createdJob.status);
+      if (!targetJobId) {
+        const createdJob = await createPrintJob(
+          machineCode,
+          pdfInfo.fileName,
+          pdfInfo.totalPages,
+          options
+        );
+        targetJobId = createdJob.id;
+        setActiveJobId(targetJobId);
+        initialStatus = createdJob.status as PrintJobStatus;
+      } else {
+        console.log(`[Frontend] Reusing existing activeJobId: ${targetJobId} for payment retry.`);
+      }
+
+      updateJobStatus(initialStatus);
 
       // 2. Create Payment Order on Backend (Cashfree Production or Sandbox)
       setPaymentStepText('Preparing Cashfree Payment Order...');
-      const paymentOrder = await createPaymentOrder(createdJob.id, 'CASHFREE');
+      const paymentOrder = await createPaymentOrder(targetJobId, 'CASHFREE');
 
       // 3. Open Cashfree Web Checkout JS SDK
       if (window.Cashfree) {
@@ -279,7 +288,7 @@ export const KioskPage: React.FC = () => {
 
       // 4. Perform Server-Side Payment Verification
       setPaymentStepText('Verifying Payment with Cashfree Server...');
-      const verifyRes = await verifyPaymentStatus(createdJob.id, paymentOrder.orderId);
+      const verifyRes = await verifyPaymentStatus(targetJobId, paymentOrder.orderId);
 
       updateJobStatus(verifyRes.status as PrintJobStatus);
       setPaymentStepText(null);
