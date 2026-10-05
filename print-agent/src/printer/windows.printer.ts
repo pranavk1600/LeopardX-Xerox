@@ -42,14 +42,14 @@ export class WindowsPrinterService implements IPrinterService {
       printConfig.pages = options.selectedPages;
     }
 
-    if (options.paperSize) {
+    // Only pass paperSize if non-default (e.g. A3) paper size is requested
+    if (options.paperSize && options.paperSize.toUpperCase() !== 'A4') {
       printConfig.paperSize = options.paperSize.toUpperCase();
     }
 
+    // Only pass side if BACK_TO_BACK (duplex) is explicitly requested
     if (options.printType === 'BACK_TO_BACK') {
       printConfig.side = 'duplex';
-    } else {
-      printConfig.side = 'simplex';
     }
 
     const isDryRun = options.dryRun || process.env.PRINT_DRY_RUN === 'true';
