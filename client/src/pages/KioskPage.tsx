@@ -26,13 +26,14 @@ import {
   verifyPaymentStatus,
   getPrintJobStatus,
 } from '../services/api';
-import { subscribeToJobUpdates } from '../services/socket';
+import { subscribeToJobUpdates, subscribeToMachineStatus } from '../services/socket';
 import {
   KioskMachine,
   UploadedPdfInfo,
   PrintOptions,
   PriceSummary,
   PrintJobStatus,
+  MachineStatus,
 } from '../types';
 
 declare global {
@@ -49,6 +50,7 @@ export const KioskPage: React.FC = () => {
   const [machine, setMachine] = useState<KioskMachine | null>(null);
   const [loadingMachine, setLoadingMachine] = useState<boolean>(true);
   const [machineError, setMachineError] = useState<string | null>(null);
+  const [retryingConnection, setRetryingConnection] = useState<boolean>(false);
 
   // File Upload State
   const [uploading, setUploading] = useState<boolean>(false);
@@ -103,6 +105,37 @@ export const KioskPage: React.FC = () => {
   useEffect(() => {
     loadMachineInfo();
   }, [machineCode]);
+
+  // Real-time Machine Connection Status Subscription (Print Agent ONLINE / OFFLINE)
+  useEffect(() => {
+    if (!machineCode) return;
+    const unsubscribe = subscribeToMachineStatus(machineCode, (newStatus) => {
+      console.log(`[KioskPage] Real-time Print Agent status update: ${newStatus}`);
+      setMachine((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: newStatus as MachineStatus,
+        };
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [machineCode]);
+
+  const handleRetryConnection = async () => {
+    setRetryingConnection(true);
+    try {
+      const data = await getMachineByCode(machineCode);
+      setMachine(data);
+    } catch (err) {
+      console.warn('[Retry Connection Error]', err);
+    } finally {
+      setRetryingConnection(false);
+    }
+  };
 
   // 2. Real-Time Socket.IO Status Updates + Polling Fallback
   useEffect(() => {
@@ -371,8 +404,61 @@ export const KioskPage: React.FC = () => {
           </div>
         )}
 
-        {/* Active Flow: Machine OK */}
-        {!loadingMachine && machine && (
+        {/* Print Agent OFFLINE Screen Card */}
+        {!loadingMachine && machine && machine.status === 'OFFLINE' && (
+          <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center gap-4 w-full max-w-full box-border min-w-0 my-auto py-8 sm:py-12">
+            {/* Leopard Sad Visual */}
+            <div className="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center">
+              <img
+                src="/leopard-sad.png"
+                alt="LeopardX Xerox Offline"
+                className="w-full h-full object-contain filter drop-shadow-sm"
+              />
+            </div>
+
+            {/* Offline Message & Headers */}
+            <div className="flex flex-col items-center gap-1.5 w-full">
+              <span className="text-xs font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
+                🐆 LeopardX Xerox
+              </span>
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+                Oops! LeopardX Xerox is Offline
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xs sm:max-w-sm leading-relaxed mt-1">
+                Print Agent is currently offline. Please wait while the printing service reconnects.
+              </p>
+            </div>
+
+            {/* Status Indicator Badge */}
+            <div className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-200 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <span>🔴 OFFLINE</span>
+            </div>
+
+            {/* Retry Connection Button */}
+            <button
+              type="button"
+              disabled={retryingConnection}
+              onClick={handleRetryConnection}
+              className="mt-2 w-full max-w-xs bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs sm:text-sm py-3 px-5 rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {retryingConnection ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Checking connection...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Retry Connection</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Active Flow: Machine ONLINE */}
+        {!loadingMachine && machine && machine.status === 'ONLINE' && (
           <>
             {/* SCREEN 1: Active Print & Payment Progress Screen */}
             {activeJobId && (jobStatus || paymentStepText) ? (

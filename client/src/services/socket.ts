@@ -56,3 +56,25 @@ export const subscribeToJobUpdates = (
     s.off('job:updated', handler);
   };
 };
+
+export const subscribeToMachineStatus = (
+  machineCode: string,
+  onStatusChange: (status: 'ONLINE' | 'OFFLINE') => void
+) => {
+  const s = getSocket();
+  const normalized = (machineCode || '').trim().toUpperCase();
+  console.log(`[Frontend Socket] Subscribing to real-time machine status for: ${normalized}`);
+
+  const handler = (data: { machineCode: string; status: string }) => {
+    if ((data.machineCode || '').trim().toUpperCase() === normalized) {
+      console.log(`[Frontend Machine Status Update] ${normalized} -> ${data.status}`);
+      onStatusChange(data.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE');
+    }
+  };
+
+  s.on('machine:status-change', handler);
+
+  return () => {
+    s.off('machine:status-change', handler);
+  };
+};
