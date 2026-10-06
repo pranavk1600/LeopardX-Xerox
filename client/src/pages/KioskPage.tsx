@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { PdfPreview } from '../components/PdfPreview';
+import leopardSad from '../assets/leopard-sad.png';
 import {
   getMachineByCode,
   uploadPdfDocument,
@@ -410,7 +411,7 @@ export const KioskPage: React.FC = () => {
             {/* Leopard Sad Visual */}
             <div className="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center">
               <img
-                src="/leopard-sad.png"
+                src={leopardSad}
                 alt="LeopardX Xerox Offline"
                 className="w-full h-full object-contain filter drop-shadow-sm"
               />
