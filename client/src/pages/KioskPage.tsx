@@ -202,9 +202,17 @@ export const KioskPage: React.FC = () => {
       setPreviewPageNum(1);
     } catch (err: any) {
       console.error('[Upload PDF Error]', err);
-      setUploadError(err.response?.data?.message || 'Failed to upload PDF. Please try again.');
+      const rawMsg = err.response?.data?.message || err.message || '';
+      if (rawMsg.includes('XRef') || rawMsg.includes('parse') || rawMsg.includes('stream')) {
+        setUploadError('Unable to read PDF page count. Please tap to choose your PDF file again.');
+      } else {
+        setUploadError(rawMsg || 'Failed to upload PDF. Please try again.');
+      }
     } finally {
       setUploading(false);
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 

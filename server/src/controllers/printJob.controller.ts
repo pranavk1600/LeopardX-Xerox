@@ -7,6 +7,28 @@ import { pricingService } from '../services/pricing.service';
 import { socketManagerInstance } from '../sockets/socket.manager';
 import { ColorMode, PaperSize, PrintType } from '@prisma/client';
 
+function extractPdfPageCountFallback(dataBuffer: Buffer): number {
+  try {
+    const binaryStr = dataBuffer.toString('binary');
+    const pageMatches = binaryStr.match(/\/Type\s*\/Page\b/g);
+    if (pageMatches && pageMatches.length > 0) {
+      return pageMatches.length;
+    }
+    const countMatches = binaryStr.match(/\/Count\s+(\d+)\b/g);
+    if (countMatches && countMatches.length > 0) {
+      const counts = countMatches
+        .map((m) => parseInt(m.replace(/[^\d]/g, ''), 10))
+        .filter((n) => !isNaN(n) && n > 0);
+      if (counts.length > 0) {
+        return Math.max(...counts);
+      }
+    }
+  } catch (err) {
+    console.warn('[PDF Fallback Extraction Warning]', err);
+  }
+  return 0;
+}
+
 export const uploadPdf = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
@@ -24,8 +46,27 @@ export const uploadPdf = async (req: Request, res: Response, next: NextFunction)
     }
 
     const dataBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(dataBuffer);
-    const totalPages = pdfData.numpages || 1;
+    let totalPages = 1;
+
+    try {
+      const pdfData = await pdfParse(dataBuffer);
+      totalPages = pdfData.numpages || 1;
+    } catch (parseErr: any) {
+      console.warn(`[PDF Parse Warning] pdf-parse failed for ${fileName} (${parseErr?.message || parseErr}). Attempting fallback extraction...`);
+      const fallbackPages = extractPdfPageCountFallback(dataBuffer);
+      if (fallbackPages > 0) {
+        console.log(`[PDF Parse Fallback Success] Determined ${fallbackPages} page(s) for ${fileName}`);
+        totalPages = fallbackPages;
+      } else {
+        console.error(`[PDF Parse Error] Unable to determine page count for ${fileName}`);
+        storageService.deleteFile(fileName);
+        res.status(400).json({
+          success: false,
+          message: 'Unable to read PDF page count. Please select or re-upload the PDF document.',
+        });
+        return;
+      }
+    }
 
     const fileUrl = `/uploads/${fileName}`;
 
