@@ -1,8 +1,46 @@
+import fs from 'fs';
+import path from 'path';
 import { AgentSocketManager } from './socket/agent.socket';
 import { printerService } from './printer/windows.printer';
 import { config } from './config';
 
+function ensureSingleInstance(): void {
+  const lockFilePath = path.join(__dirname, '..', 'agent.lock');
+  try {
+    if (fs.existsSync(lockFilePath)) {
+      const existingPidStr = fs.readFileSync(lockFilePath, 'utf8').trim();
+      const existingPid = parseInt(existingPidStr, 10);
+      if (!isNaN(existingPid)) {
+        try {
+          process.kill(existingPid, 0);
+          console.error(`[Print Agent Lock Error] Another Print Agent instance (PID: ${existingPid}) is already running!`);
+          console.error(`[Print Agent Lock Error] Exiting process ${process.pid} to prevent duplicate printing.`);
+          process.exit(0);
+        } catch (e) {
+          console.log(`[Print Agent Lock] Removing stale lock file from previous process ${existingPid}`);
+        }
+      }
+    }
+    fs.writeFileSync(lockFilePath, String(process.pid), 'utf8');
+
+    const cleanup = () => {
+      try {
+        if (fs.existsSync(lockFilePath)) {
+          fs.unlinkSync(lockFilePath);
+        }
+      } catch (err) {}
+    };
+    process.on('exit', cleanup);
+    process.on('SIGINT', () => { cleanup(); process.exit(0); });
+    process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+  } catch (err) {
+    console.warn('[Print Agent Lock Warning] Unable to enforce lock file check:', err);
+  }
+}
+
 async function bootstrap() {
+  ensureSingleInstance();
+
   console.log(`==================================================`);
   console.log(`🐆 LeopardX Xerox Local Print Agent`);
   console.log(`📍 Machine Code: ${config.machineCode}`);

@@ -261,10 +261,10 @@ export class SocketManager {
       }
     }
 
-    console.log(`[Socket] Emitting print job to machine:${normalizedCode}`);
+    console.log(`[Socket] Emitting print job to active socket ${socketId} for machine:${normalizedCode}`);
     console.log(`[Print Dispatch] Job ${jobData.id} dispatched to machine ${normalizedCode}`);
-    this.io.to(`machine:${normalizedCode}`).emit('print-job:dispatch', jobData);
-    console.log(`[Socket Dispatch Success] Dispatched job ${jobData.id} to machine ${normalizedCode}`);
+    this.io.to(socketId).emit('print-job:dispatch', jobData);
+    console.log(`[Socket Dispatch Success] Dispatched job ${jobData.id} to machine ${normalizedCode} via socket ${socketId}`);
     return true;
   }
 
